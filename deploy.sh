@@ -3,10 +3,9 @@
 # deploy.sh — Deployment helper for KBI Telegram Cloud Functions
 #
 # WHAT THIS SCRIPT DOES:
-#   1. Copies shared modules (config.py, telegram_service.py, alert_dispatcher.py)
-#      into each Cloud Function folder (required because Cloud Functions cannot
-#      share files across deployment packages).
-#   2. Deploys each function to Google Cloud Functions using gcloud CLI.
+#   Deploys each self-contained Cloud Function to Google Cloud Functions.
+#   config.py, telegram_service.py, and alert_dispatcher.py live directly
+#   inside each function's folder — no shared directory needed.
 #
 # HOW TO RUN:
 #   chmod +x deploy.sh
@@ -14,7 +13,6 @@
 #   ./deploy.sh gantt               # Deploy only gantt-alerts
 #   ./deploy.sh webhook             # Deploy only telegram-webhook
 #   ./deploy.sh attendance          # Deploy only attendance-checker
-#   ./deploy.sh copy                # Only copy shared files, don't deploy
 #
 # PREREQUISITES:
 #   1. Install gcloud CLI: https://cloud.google.com/sdk/docs/install
@@ -37,7 +35,6 @@ set -e  # Exit immediately on any error
 PROJECT_ID="arched-elixir-464218-j8"   # Your GCP project ID
 REGION="asia-south2"                    # Cloud Functions region
 RUNTIME="python312"                     # Python version (3.12 recommended)
-SHARED_DIR="./shared"                   # Location of shared modules
 
 # Function folder names and their Cloud Function names (entry points)
 GANTT_DIR="./gantt-alerts"
@@ -64,39 +61,7 @@ echo_error()   { echo -e "${RED}[ERROR]${NC} $1"; }
 
 
 # =============================================================================
-# STEP 1: COPY SHARED MODULES INTO EACH FUNCTION FOLDER
-# =============================================================================
-copy_shared_modules() {
-    echo_info "Copying shared modules into function folders..."
-
-    SHARED_FILES=("config.py" "telegram_service.py" "alert_dispatcher.py")
-
-    for FUNCTION_DIR in "$GANTT_DIR" "$WEBHOOK_DIR" "$ATTENDANCE_DIR"; do
-        if [ ! -d "$FUNCTION_DIR" ]; then
-            echo_warning "Directory $FUNCTION_DIR not found. Skipping."
-            continue
-        fi
-
-        for FILE in "${SHARED_FILES[@]}"; do
-            SOURCE="$SHARED_DIR/$FILE"
-            DEST="$FUNCTION_DIR/$FILE"
-
-            if [ ! -f "$SOURCE" ]; then
-                echo_error "Shared file $SOURCE not found! Run from the project root."
-                exit 1
-            fi
-
-            cp "$SOURCE" "$DEST"
-            echo_info "  Copied $FILE → $FUNCTION_DIR/"
-        done
-    done
-
-    echo_info "✅ Shared modules copied successfully."
-}
-
-
-# =============================================================================
-# STEP 2: DEPLOY FUNCTIONS
+# DEPLOY FUNCTIONS
 # =============================================================================
 deploy_gantt() {
     echo_info "Deploying: $GANTT_FUNCTION_NAME (Gantt Alert Service)..."
@@ -150,23 +115,16 @@ deploy_attendance() {
 COMMAND="${1:-all}"
 
 case "$COMMAND" in
-    "copy")
-        copy_shared_modules
-        ;;
     "gantt")
-        copy_shared_modules
         deploy_gantt
         ;;
     "webhook")
-        copy_shared_modules
         deploy_webhook
         ;;
     "attendance")
-        copy_shared_modules
         deploy_attendance
         ;;
     "all")
-        copy_shared_modules
         deploy_gantt
         deploy_webhook
         deploy_attendance
@@ -180,7 +138,7 @@ case "$COMMAND" in
         ;;
     *)
         echo_error "Unknown command: $COMMAND"
-        echo "Usage: $0 [all|copy|gantt|webhook|attendance]"
+        echo "Usage: $0 [all|gantt|webhook|attendance]"
         exit 1
         ;;
 esac
