@@ -1,0 +1,6 @@
+# attendance-checker/requirements.txt
+# Cloud Function: check_attendance_discrepancies
+functions-framework==3.*
+google-cloud-storage==2.*
+requests==2.*
+# smtplib is part of Python stdlib — no pip install needed
