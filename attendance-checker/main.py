@@ -60,7 +60,8 @@ MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
 MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
 MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
 MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
-MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
+# Fall back to MAIL_USERNAME if MAIL_DEFAULT_SENDER is not explicitly set
+MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER") or os.environ.get("MAIL_USERNAME")
 
 # Telegram bot token (same token across all services)
 TELEGRAM_BOT_TOKEN = BOT_TOKEN or os.environ.get("TELEGRAM_BOT_TOKEN")

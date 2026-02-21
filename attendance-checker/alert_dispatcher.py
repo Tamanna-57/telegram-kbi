@@ -31,11 +31,11 @@ from config import (
     SEND_INDIVIDUAL_ALERTS,
     DEBUG_MODE,
 )
+from telegram_service import send_message
 
 # If TELEGRAM_GROUP_CHAT_ID is not set, fall back to ADMIN_CHAT_ID so alerts
 # still reach someone even without a group configured.
 EFFECTIVE_GROUP_CHAT_ID: str = TELEGRAM_GROUP_CHAT_ID or ADMIN_CHAT_ID
-from telegram_service import send_message
 
 # ============================================================
 # LOGGING
