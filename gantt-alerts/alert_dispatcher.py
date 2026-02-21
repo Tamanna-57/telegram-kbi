@@ -27,9 +27,14 @@ from typing import Optional, List, Dict, Any
 # config.py and telegram_service.py must be in the same folder at deploy time
 from config import (
     TELEGRAM_GROUP_CHAT_ID,
+    ADMIN_CHAT_ID,
     SEND_INDIVIDUAL_ALERTS,
     DEBUG_MODE,
 )
+
+# If TELEGRAM_GROUP_CHAT_ID is not set, fall back to ADMIN_CHAT_ID so alerts
+# still reach someone even without a group configured.
+EFFECTIVE_GROUP_CHAT_ID: str = TELEGRAM_GROUP_CHAT_ID or ADMIN_CHAT_ID
 from telegram_service import send_message
 
 # ============================================================
@@ -99,34 +104,33 @@ def dispatch_alert(
 
     # ---- Step 1: Send to GROUP (primary destination) ----
     if not skip_group:
-        if TELEGRAM_GROUP_CHAT_ID:
-            logger.info(f"Dispatching group alert → chat_id={TELEGRAM_GROUP_CHAT_ID}")
+        if EFFECTIVE_GROUP_CHAT_ID:
+            logger.info(f"Dispatching group alert → chat_id={EFFECTIVE_GROUP_CHAT_ID}")
             result = send_message(
                 bot_token,
-                TELEGRAM_GROUP_CHAT_ID,
+                EFFECTIVE_GROUP_CHAT_ID,
                 message,
                 reply_markup=reply_markup,
             )
             results["group_sent"] = result is not None
 
             if results["group_sent"]:
-                logger.info(f"✅ Group alert sent → chat_id={TELEGRAM_GROUP_CHAT_ID}")
+                logger.info(f"✅ Group alert sent → chat_id={EFFECTIVE_GROUP_CHAT_ID}")
             else:
                 logger.error(
-                    f"❌ Group alert FAILED → chat_id={TELEGRAM_GROUP_CHAT_ID}. "
-                    "Check that the bot is in the group and TELEGRAM_GROUP_CHAT_ID is correct."
+                    f"❌ Group alert FAILED → chat_id={EFFECTIVE_GROUP_CHAT_ID}. "
+                    "Check TELEGRAM_GROUP_CHAT_ID / ADMIN_CHAT_ID env vars and bot membership."
                 )
         else:
             logger.warning(
-                "⚠️ TELEGRAM_GROUP_CHAT_ID is not set. "
-                "Group alert skipped. Set the env variable TELEGRAM_GROUP_CHAT_ID "
-                "to enable group alerts."
+                "⚠️ Neither TELEGRAM_GROUP_CHAT_ID nor ADMIN_CHAT_ID is set. "
+                "Group alert skipped."
             )
 
     # ---- Step 2: Optionally send to INDIVIDUAL user ----
     if SEND_INDIVIDUAL_ALERTS and individual_chat_id:
         # Prevent duplicate: skip individual if it IS the group
-        if str(individual_chat_id) == str(TELEGRAM_GROUP_CHAT_ID):
+        if str(individual_chat_id) == str(EFFECTIVE_GROUP_CHAT_ID):
             logger.info(
                 "Individual chat_id matches group chat_id — skipping duplicate send. "
                 f"chat_id={individual_chat_id}"
@@ -202,25 +206,25 @@ def dispatch_admin_alert(
     }
 
     # ---- Send to GROUP first ----
-    if TELEGRAM_GROUP_CHAT_ID:
-        logger.info(f"Dispatching admin group alert → chat_id={TELEGRAM_GROUP_CHAT_ID}")
+    if EFFECTIVE_GROUP_CHAT_ID:
+        logger.info(f"Dispatching admin group alert → chat_id={EFFECTIVE_GROUP_CHAT_ID}")
         result = send_message(
             bot_token,
-            TELEGRAM_GROUP_CHAT_ID,
+            EFFECTIVE_GROUP_CHAT_ID,
             message,
             reply_markup=reply_markup,
         )
         results["group_sent"] = result is not None
 
         if results["group_sent"]:
-            logger.info(f"✅ Admin group alert sent → chat_id={TELEGRAM_GROUP_CHAT_ID}")
+            logger.info(f"✅ Admin group alert sent → chat_id={EFFECTIVE_GROUP_CHAT_ID}")
         else:
             logger.error(
-                f"❌ Admin group alert FAILED → chat_id={TELEGRAM_GROUP_CHAT_ID}"
+                f"❌ Admin group alert FAILED → chat_id={EFFECTIVE_GROUP_CHAT_ID}"
             )
     else:
         logger.warning(
-            "⚠️ TELEGRAM_GROUP_CHAT_ID not set. Admin group alert skipped."
+            "⚠️ Neither TELEGRAM_GROUP_CHAT_ID nor ADMIN_CHAT_ID is set. Admin group alert skipped."
         )
 
     # ---- Optionally send to each admin individually ----
@@ -243,7 +247,7 @@ def dispatch_admin_alert(
             continue
 
         # Skip if admin's personal chat_id is the same as the group (duplicate)
-        if str(chat_id) == str(TELEGRAM_GROUP_CHAT_ID):
+        if str(chat_id) == str(EFFECTIVE_GROUP_CHAT_ID):
             logger.info(
                 f"Admin {name} ({email}) chat_id matches group — skipping duplicate."
             )

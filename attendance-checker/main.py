@@ -644,9 +644,14 @@ def check_attendance_discrepancies(request):
                 f"({count} issue{'s' if count > 1 else ''})"
             )
 
-        # Send EMAIL
-        html_body = format_email_body(discrepancies, target_date)
-        send_email(admin_emails, subject, html_body)
+        # Send EMAIL — non-fatal: Telegram still runs even if email fails
+        email_sent_count = 0
+        try:
+            html_body = format_email_body(discrepancies, target_date)
+            send_email(admin_emails, subject, html_body)
+            email_sent_count = len(admin_emails)
+        except Exception as email_exc:
+            print(f"⚠️ Email failed (Telegram will still run): {email_exc}")
 
         # Send TELEGRAM — group first, optionally individual admins
         telegram_message = format_telegram_message(discrepancies, target_date)
@@ -665,7 +670,7 @@ def check_attendance_discrepancies(request):
             "mode": "manual" if manual_date else "auto",
             "discrepancies_count": len(discrepancies),
             "notifications": {
-                "email_sent": len(admin_emails),
+                "email_sent": email_sent_count,
                 "telegram_group_sent": telegram_results.get("group_sent", False),
                 "telegram_individual_sent": telegram_results.get("individual_sent_count", 0),
                 "telegram_individual_failed": telegram_results.get("individual_failed_count", 0),
