@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Press Monitoring Dashboard - KBI</title>
+    <link rel="stylesheet" href="{{ url_for('press_portal.static', filename='press_portal.css') }}">
+    <style>
+        .monitoring-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .refresh-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .metric-badge.stroke {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .metric-badge.temperature {
+            background-color: #fff3e0;
+            color: #f57c00;
+        }
+
+        .metric-badge.vibration {
+            background-color: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .press-monitoring-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 4px solid #2196f3;
+        }
+
+        .press-monitoring-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+
+        .press-monitoring-card.no-data {
+            border-left-color: #ccc;
+            opacity: 0.7;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .press-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .last-updated {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .metrics-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .metric-item {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .metric-unit {
+            font-size: 12px;
+            color: #999;
+            margin-left: 4px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-left: 6px;
+        }
+
+        .status-indicator.ok { background-color: #4caf50; }
+        .status-indicator.good { background-color: #4caf50; }
+        .status-indicator.warning { background-color: #ff9800; }
+        .status-indicator.unknown { background-color: #999; }
+        .status-indicator.danger { background-color: #dc3545; }
+
+        /* Connection status colors (Tailwind-style) */
+        .status-indicator.bg-gray-400 { background-color: #9ca3af; }
+        .status-indicator.bg-green-500 { background-color: #22c55e; }
+        .status-indicator.bg-red-500 { background-color: #ef4444; }
+
+        .no-data-placeholder {
+            color: #999;
+            font-style: italic;
+            font-size: 14px;
+        }
+
+        /* Current Operation Styles */
+        .current-operation {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .current-operation .op-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+
+        .current-operation .op-details {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .current-operation .op-meta {
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+
+        .operation-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-left: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .operation-badge.running {
+            background-color: #28a745;
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .press-idle {
+            color: #999;
+            font-size: 13px;
+            font-style: italic;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .auto-refresh {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .refresh-btn {
+            padding: 6px 12px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .refresh-btn:hover {
+            background-color: #1976d2;
+        }
+
+        /* Live indicator dot */
+        .live-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #28a745;
+            margin-left: 4px;
+            animation: live-pulse 1.5s infinite;
+        }
+
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.4); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(40, 167, 69, 0); }
+        }
+
+        /* Metric update pulse */
+        .metric-pulse {
+            animation: metric-flash 0.5s ease;
+        }
+
+        @keyframes metric-flash {
+            0% { color: #333; }
+            50% { color: #28a745; transform: scale(1.05); }
+            100% { color: #333; transform: scale(1); }
+        }
+
+        .nav-bar {
+            background: rgba(255,255,255,0.95);
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .nav-bar a {
+            color: #2c3e50;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-bar a:hover { background: #f0f0f0; }
+        .nav-bar a.active { background: #667eea; color: white; }
+
+        /* Info button and modal styles */
+        .info-button {
+            background: #2196f3;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .info-button:hover {
+            background: #1976d2;
+            transform: scale(1.1);
+        }
+
+        .info-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .info-modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .info-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .info-modal-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close-modal {
+            font-size: 28px;
+            font-weight: bold;
+            color: #999;
+            cursor: pointer;
+            border: none;
+            background: none;
+            transition: color 0.3s;
+        }
+
+        .close-modal:hover {
+            color: #333;
+        }
+
+        .info-section {
+            margin-bottom: 25px;
+        }
+
+        .info-section h3 {
+            color: #2196f3;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .info-section p {
+            color: #555;
+            line-height: 1.6;
+            margin: 8px 0;
+        }
+
+        .info-section ul {
+            color: #555;
+            line-height: 1.8;
+            margin-left: 20px;
+        }
+
+        .info-highlight {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        /* Fullscreen TV Mode Styles */
+        .fullscreen-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fullscreen-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .fullscreen-button:active {
+            transform: translateY(0);
+        }
+
+        #fullscreenIcon {
+            font-size: 20px;
+        }
+
+        /* Fullscreen mode adjustments */
+        body.fullscreen-mode {
+            background: #1a1a1a;
+        }
+
+        body.fullscreen-mode .nav-bar {
+            display: none;
+        }
+
+        body.fullscreen-mode header {
+            display: none;
+        }
+
+        body.fullscreen-mode .container {
+            max-width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+        }
+
+        body.fullscreen-mode .main-content {
+            padding: 0;
+        }
+
+        body.fullscreen-mode .monitoring-header {
+            margin-bottom: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+
+        body.fullscreen-mode .monitoring-header h2 {
+            font-size: 20px;
+            margin: 0;
+            color: white;
+        }
+
+        body.fullscreen-mode .monitoring-header p {
+            font-size: 13px;
+            margin: 0;
+            color: #ccc;
+        }
+
+        body.fullscreen-mode .auto-refresh {
+            color: #ccc;
+        }
+
+        body.fullscreen-mode .refresh-btn {
+            background-color: #667eea;
+            font-size: 12px;
+            padding: 5px 10px;
+        }
+
+        body.fullscreen-mode .presses-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        body.fullscreen-mode .press-monitoring-card {
+            padding: 12px;
+            background: rgba(255,255,255,0.95);
+        }
+
+        body.fullscreen-mode .press-name {
+            font-size: 16px;
+        }
+
+        body.fullscreen-mode .last-updated {
+            font-size: 10px;
+        }
+
+        body.fullscreen-mode .metric-item {
+            padding: 8px;
+        }
+
+        body.fullscreen-mode .metric-label {
+            font-size: 9px;
+        }
+
+        body.fullscreen-mode .metric-value {
+            font-size: 16px;
+        }
+
+        body.fullscreen-mode .metric-unit {
+            font-size: 10px;
+        }
+
+        body.fullscreen-mode .current-operation {
+            padding: 8px 12px;
+        }
+
+        body.fullscreen-mode .current-operation .op-label {
+            font-size: 9px;
+        }
+
+        body.fullscreen-mode .current-operation .op-details {
+            font-size: 12px;
+        }
+
+        body.fullscreen-mode .current-operation .op-meta {
+            font-size: 10px;
+        }
+
+        body.fullscreen-mode .press-idle {
+            font-size: 11px;
+            padding: 8px;
+        }
+
+        body.fullscreen-mode footer {
+            display: none;
+        }
+
+        /* Exit fullscreen button (appears only in fullscreen) */
+        .exit-fullscreen-btn {
+            display: none;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(220, 53, 69, 0.9);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            z-index: 9999;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+
+        body.fullscreen-mode .exit-fullscreen-btn {
+            display: block;
+        }
+
+        .exit-fullscreen-btn:hover {
+            background: rgba(200, 35, 51, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <button onclick="toggleFullscreen()" class="exit-fullscreen-btn">✕ Exit TV Mode</button>
+    <div class="container">
+        <div class="nav-bar">
+            <a href="{{ url_for('press_shop_reports.press_shop_details') }}">Press Shop Reports</a>
+            <a href="{{ url_for('press_portal.operations_index') }}" >Operations</a>
+            <a href="{{ url_for('press_portal.monitoring_dashboard') }}" class="active">Monitoring</a>
+            <a href="{{ url_for('press_portal.raw_data_export') }}" >Raw Data</a>
+            <a href="{{ url_for('press_portal.analytics_dashboard') }}">Analytics Dashboard</a>
+            <a href="{{ url_for('production_bp.press_reports_entry') }}" >Press Reports Entry</a>
+            <a href="{{ url_for('press_portal.admin_login') }}">Admin</a>
+            <a href="{{ url_for('index') }}">← Back to Main Dashboard</a>
+        </div>
+
+        <header style="display: flex; align-items: center; gap: 10px; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h1>Press Monitoring Dashboard</h1>
+                <button onclick="openInfoModal()" class="info-button" title="Learn about metrics">ℹ️</button>
+            </div>
+            <a href="{{ url_for('press_portal.monitoring_tv_mode') }}" class="fullscreen-button" style="text-decoration: none; display: inline-flex; align-items: center; gap: 8px;" title="Open TV Mode">
+                <span>📺</span> TV Mode
+            </a>
+        </header>
+
+        <div class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <div class="monitoring-header">
+                <div>
+                    <h2>Real-Time Press Status</h2>
+                    <p style="color: #666; margin-top: 5px;">
+                        Showing data for {{ press_data.total_presses }} presses
+                        {% if press_data.last_discovered %}
+                            • Last updated: {{ press_data.last_discovered[:19].replace('T', ' ') }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="auto-refresh">
+                    <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+                    <span id="auto-refresh-timer"></span>
+                </div>
+            </div>
+
+            <div class="presses-grid" id="presses-grid">
+                {% if press_data.presses %}
+                    {% for press in press_data.presses %}
+                        <div class="press-monitoring-card {% if not press.has_processed_data %}no-data{% endif %}"
+                             data-press-name="{{ press.press_name }}"
+                             onclick="window.location.href='/press/analytics?press={{ press.press_name }}'">
+
+                            <div class="card-header">
+                                <h3 class="press-name">
+                                    {{ press.press_name }}
+                                    {% if press.status == 'active' %}
+                                        <span class="status-indicator bg-green-500" title="Active - Data within last 20 minutes"></span>
+                                    {% elif press.status == 'inactive' %}
+                                        <span class="status-indicator bg-red-500" title="No data in last 20 minutes"></span>
+                                    {% else %}
+                                        <span class="status-indicator bg-gray-400" title="Status unknown"></span>
+                                    {% endif %}
+                                    {% if current_operations.get(press.press_name) %}
+                                        <span class="operation-badge running">Running</span>
+                                    {% endif %}
+                                </h3>
+                                {% if press.last_updated %}
+                                    <span class="last-updated" data-field="last-updated">
+                                        Last seen: {{ press.last_updated[:19].replace('T', ' ') }}
+                                    </span>
+                                {% else %}
+                                    <span class="last-updated" data-field="last-updated" style="color: #999;">
+                                        No recent data
+                                    </span>
+                                {% endif %}
+                            </div>
+
+                            <div style="margin: 10px 0;">
+                                {% for metric in press.available_metrics %}
+                                    <span class="metric-badge {{ metric.replace('_', '-') }}">{{ metric.replace('_', ' ') }}</span>
+                                {% endfor %}
+                            </div>
+
+                            <!-- Current Operation Display -->
+                            {% if press.latest_command and press.latest_command.command_type == 'START' %}
+                                <div class="current-operation">
+                                    <div class="op-label">Current Operation</div>
+                                    <div class="op-details">
+                                        {{ press.latest_command.operation or 'Unknown' }}
+                                        {% if press.latest_command.component %}
+                                            ({{ press.latest_command.component }})
+                                        {% endif %}
+                                    </div>
+                                    <div class="op-meta">
+                                        Operator: {{ press.latest_command.operator or 'Unknown' }}
+                                    </div>
+                                    <div class="op-meta" style="margin-top: 4px; font-size: 11px; color: #666;">
+                                        Started: {% if press.latest_command.timestamp %}{{ press.latest_command.timestamp[:10] }} {{ press.latest_command.timestamp[11:16] }}{% else %}Unknown{% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="press-idle">
+                                    Press is idle
+                                </div>
+                            {% endif %}
+
+                            {% if press.has_processed_data %}
+                                <div class="metrics-container">
+                                    <!-- Stroke Count -->
+                                    {% if press.latest_metrics.stroke_count is not none %}
+                                        <div class="metric-item" data-metric="stroke-count">
+                                            <div class="metric-value" data-field="stroke-count">
+                                                {{ "{:,}".format(press.latest_metrics.stroke_count) }}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    <!-- Stroke Rate (Live) -->
+                                    <div class="metric-item" data-metric="stroke-rate">
+                                        <div class="metric-value">
+                                            <span data-field="stroke-rate">{{ press.latest_metrics.stroke_rate or '--' }}</span>
+                                            <span class="metric-unit">/min</span>
+                                            <span class="live-indicator"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Vibration -->
+                                    {% if press.latest_metrics.vibration %}
+                                        <div class="metric-item">
+                                            <div class="metric-value">
+                                                {{ press.latest_metrics.vibration.avg }}
+                                                <span class="metric-unit">mm/s</span>
+                                                <span class="status-indicator {{ press.latest_metrics.vibration.status|lower|default('unknown') }}"></span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                </div>
+                            {% else %}
+                                <div class="no-data-placeholder">
+                                    Processing data... Please check back in a few minutes.
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <p>No press monitoring data available yet.</p>
+                        <p style="margin-top: 10px; font-size: 14px; color: #666;">
+                            Cloud functions may still be processing data. Please check back in a few minutes.
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Khandelwal Busar Industries. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Auto-refresh countdown (refresh every 5 minutes = 300 seconds)
+        let countdown = 300;
+        const timerElement = document.getElementById('auto-refresh-timer');
+
+        function updateTimer() {
+            countdown--;
+            if (countdown <= 0) {
+                // Reset countdown and reload
+                countdown = 300;
+                timerElement.textContent = 'Reloading...';
+                window.location.reload(true);  // Force reload from server
+            } else {
+                timerElement.textContent = `Full refresh in ${countdown}s`;
+            }
+        }
+
+        // Start countdown timer
+        setInterval(updateTimer, 1000);
+        timerElement.textContent = `Full refresh in ${countdown}s`;
+
+        // Info modal functions
+        function openInfoModal() {
+            document.getElementById('infoModal').style.display = 'block';
+        }
+
+        function closeInfoModal() {
+            document.getElementById('infoModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('infoModal');
+            if (event.target == modal) {
+                closeInfoModal();
+            }
+        }
+
+        // Fullscreen TV Mode toggle
+        function toggleFullscreen() {
+            const body = document.body;
+            const fullscreenIcon = document.getElementById('fullscreenIcon');
+
+            if (!document.fullscreenElement) {
+                // Enter fullscreen mode
+                document.documentElement.requestFullscreen().then(() => {
+                    body.classList.add('fullscreen-mode');
+                    if (fullscreenIcon) {
+                        fullscreenIcon.textContent = '✕';
+                    }
+                }).catch(err => {
+                    console.error('Error entering fullscreen:', err);
+                    // Still apply CSS class even if fullscreen API fails
+                    body.classList.add('fullscreen-mode');
+                    if (fullscreenIcon) {
+                        fullscreenIcon.textContent = '✕';
+                    }
+                });
+            } else {
+                // Exit fullscreen mode
+                document.exitFullscreen().then(() => {
+                    body.classList.remove('fullscreen-mode');
+                    if (fullscreenIcon) {
+                        fullscreenIcon.textContent = '⛶';
+                    }
+                }).catch(err => {
+                    console.error('Error exiting fullscreen:', err);
+                    // Still remove CSS class even if fullscreen API fails
+                    body.classList.remove('fullscreen-mode');
+                    if (fullscreenIcon) {
+                        fullscreenIcon.textContent = '⛶';
+                    }
+                });
+            }
+        }
+
+        // Handle fullscreen change events (e.g., user presses ESC)
+        document.addEventListener('fullscreenchange', function() {
+            const body = document.body;
+            const fullscreenIcon = document.getElementById('fullscreenIcon');
+
+            if (!document.fullscreenElement) {
+                body.classList.remove('fullscreen-mode');
+                if (fullscreenIcon) {
+                    fullscreenIcon.textContent = '⛶';
+                }
+            }
+        });
+
+        // ==================== LIVE MONITORING ====================
+        // Poll for live stroke count updates every 5 seconds
+
+        let liveDataCache = {}; // Store previous values for comparison
+
+        async function updateLiveData() {
+            try {
+                const response = await fetch('/press/api/monitoring/live_all');
+                if (!response.ok) {
+                    console.error('Failed to fetch live data:', response.statusText);
+                    return;
+                }
+
+                const data = await response.json();
+
+                // Log cache status for debugging
+                if (data.cached) {
+                    console.log(`Live data from cache (age: ${data.cache_age}s)`);
+                } else {
+                    console.log('Live data refreshed from GCS');
+                }
+
+                // Update each press tile
+                data.presses.forEach(press => {
+                    const pressName = press.press_name;
+                    const tile = document.querySelector(`[data-press-name="${pressName}"]`);
+
+                    if (!tile) return; // Press tile not found
+
+                    // Update stroke count with animation
+                    const strokeCountElement = tile.querySelector('[data-field="stroke-count"]');
+                    if (strokeCountElement && press.stroke_count !== null) {
+                        const newCount = press.stroke_count;
+                        const oldCount = liveDataCache[pressName]?.stroke_count;
+
+                        // Only update if value changed
+                        if (newCount !== oldCount) {
+                            strokeCountElement.textContent = newCount.toLocaleString();
+
+                            // Add pulse animation
+                            strokeCountElement.classList.remove('metric-pulse');
+                            // Force reflow to restart animation
+                            void strokeCountElement.offsetWidth;
+                            strokeCountElement.classList.add('metric-pulse');
+
+                            console.log(`${pressName}: ${oldCount} → ${newCount}`);
+                        }
+                    }
+
+                    // Update last updated timestamp
+                    const lastUpdatedElement = tile.querySelector('[data-field="last-updated"]');
+                    if (lastUpdatedElement && press.last_updated) {
+                        const timestamp = new Date(press.last_updated);
+                        const timeString = timestamp.toLocaleString('en-IN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit',
+                            hour12: false
+                        });
+                        lastUpdatedElement.textContent = `Last seen: ${timeString}`;
+                    }
+
+                    // Update status indicator (green/red dot)
+                    const statusIndicator = tile.querySelector('.status-indicator');
+                    if (statusIndicator) {
+                        // Remove all status classes
+                        statusIndicator.classList.remove('bg-green-500', 'bg-red-500', 'bg-gray-400');
+
+                        // Add appropriate class based on status
+                        if (press.status === 'active') {
+                            statusIndicator.classList.add('bg-green-500');
+                            statusIndicator.title = 'Active - Data within last minute';
+                        } else if (press.status === 'inactive') {
+                            statusIndicator.classList.add('bg-red-500');
+                            statusIndicator.title = 'Inactive - No data in last 1-20 minutes';
+                        } else {
+                            statusIndicator.classList.add('bg-gray-400');
+                            statusIndicator.title = 'Status unknown';
+                        }
+                    }
+
+                    // Cache the new values
+                    liveDataCache[pressName] = {
+                        stroke_count: press.stroke_count,
+                        last_updated: press.last_updated,
+                        status: press.status
+                    };
+                });
+
+            } catch (error) {
+                console.error('Error updating live data:', error);
+                // Keep showing old data on error (graceful degradation)
+            }
+        }
+
+        // Start live monitoring
+        console.log('Starting live monitoring (5s interval)...');
+        updateLiveData(); // Initial update
+        setInterval(updateLiveData, 5000); // Update every 5 seconds
+    </script>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="info-modal">
+        <div class="info-modal-content">
+            <div class="info-modal-header">
+                <h2>📊 Understanding Press Monitoring Metrics</h2>
+                <button class="close-modal" onclick="closeInfoModal()">&times;</button>
+            </div>
+
+            <div class="info-highlight">
+                <strong>💡 Quick Overview:</strong> This dashboard displays real-time performance data for all press machines.
+                Metrics update automatically every 5 seconds, giving you live visibility into machine operations.
+            </div>
+
+            <div class="info-section">
+                <h3>🔢 Stroke Count</h3>
+                <p><strong>What it is:</strong> The total number of press operations (strokes) completed by the machine since it started running.</p>
+                <p><strong>Why it matters:</strong> This shows the cumulative production output of the press. Higher numbers indicate more work completed.</p>
+            </div>
+
+            <div class="info-section">
+                <h3>⚡ Stroke Rate</h3>
+                <p><strong>What it is:</strong> The average number of strokes the press completes per minute, calculated over a 10-minute window.</p>
+                <p><strong>Why it matters:</strong> This indicates the current operating speed of the press. A higher rate means faster production.</p>
+                <p><strong>Typical values:</strong> Normal production rates vary by press type, but sudden drops may indicate issues.</p>
+            </div>
+
+            <div class="info-section">
+                <h3>🌡️ Temperature</h3>
+                <p><strong>What it is:</strong> The current temperature reading from the press machine's sensor, measured in degrees Celsius (°C).</p>
+                <p><strong>Why it matters:</strong> Monitors machine health. Excessive heat can indicate mechanical problems or need for maintenance.</p>
+                <ul>
+                    <li><strong>Normal:</strong> Temperature is within safe operating range</li>
+                    <li><strong>Warning:</strong> Temperature is elevated, monitor closely</li>
+                    <li><strong>Critical:</strong> Temperature is too high, requires immediate attention</li>
+                </ul>
+            </div>
+
+            <div class="info-section">
+                <h3>📳 Vibration</h3>
+                <p><strong>What it is:</strong> The vibration intensity measured in millimeters per second (mm/s), showing mechanical oscillations.</p>
+                <p><strong>Why it matters:</strong> Excessive vibration can indicate wear, misalignment, or mechanical issues that need attention.</p>
+                <ul>
+                    <li><strong>Normal:</strong> Vibration is within acceptable levels</li>
+                    <li><strong>Warning:</strong> Elevated vibration detected</li>
+                    <li><strong>Critical:</strong> Excessive vibration requires immediate inspection</li>
+                </ul>
+            </div>
+
+            <div class="info-section">
+                <h3>📋 Latest Command</h3>
+                <p><strong>What it is:</strong> The most recent control command sent to the press machine, along with when it was issued.</p>
+                <p><strong>Common commands:</strong></p>
+                <ul>
+                    <li><strong>START:</strong> Command to begin operations</li>
+                    <li><strong>STOP:</strong> Command to halt operations</li>
+                    <li><strong>CHANGE_SPEED:</strong> Adjust operating speed</li>
+                    <li><strong>ADJUST:</strong> Fine-tune machine parameters</li>
+                </ul>
+            </div>
+
+            <div class="info-section">
+                <h3>🔴🟢 Connection Status</h3>
+                <p><strong>What it means:</strong></p>
+                <ul>
+                    <li><strong>🟢 Green dot:</strong> Press is connected and sending data (last update within 20 minutes)</li>
+                    <li><strong>🔴 Red dot:</strong> Press is disconnected or hasn't sent data in over 20 minutes</li>
+                </ul>
+                <p><strong>Why it matters:</strong> Ensures you're viewing current data. A disconnected press may need network or sensor troubleshooting.</p>
+            </div>
+
+            <div class="info-highlight">
+                <strong>🔄 Data Refresh:</strong> The page automatically refreshes live metrics every 5 seconds.
+                You can also click the "🔄 Refresh" button for an immediate full page reload.
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

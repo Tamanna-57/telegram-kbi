@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="en">
+ 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operations Analytics - Press Portal</title>
+    <link rel="stylesheet" href="{{ url_for('press_portal.static', filename='press_portal.css') }}">
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        /* Page-specific styles that complement the shared CSS */
+        body {
+            font-family: 'DM Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+ 
+        .nav-bar {
+            background: rgba(255,255,255,0.95);
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .nav-bar a {
+            color: #2c3e50;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-bar a:hover { background: #f0f0f0; }
+        .nav-bar a.active { background: #667eea; color: white; }
+ 
+        /* Analytics specific variables */
+        :root {
+            --accent-blue: #3498db;
+            --accent-purple: #667eea;
+            --accent-green: #27ae60;
+            --accent-yellow: #f39c12;
+            --accent-red: #e74c3c;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-muted: #95a5a6;
+            --bg-card: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --border-color: #e9ecef;
+        }
+ 
+        /* Page Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+ 
+        .page-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+ 
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 15px;
+        }
+ 
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+ 
+        /* Buttons */
+        .btn-analytics {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-family: inherit;
+        }
+ 
+        .btn-analytics-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+ 
+        .btn-analytics-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+ 
+        .btn-analytics-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+ 
+        .btn-analytics-secondary:hover {
+            background: var(--bg-secondary);
+            border-color: var(--accent-blue);
+        }
+ 
+        /* Cards */
+        .analytics-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+ 
+        .analytics-card:hover {
+            border-color: var(--accent-blue);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+ 
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+ 
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+ 
+        .card-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+ 
+        .badge-info {
+            background: rgba(52, 152, 219, 0.15);
+            color: var(--accent-blue);
+        }
+ 
+        /* Grids */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+ 
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+ 
+        @media (max-width: 1400px) {
+            .grid-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+ 
+        @media (max-width: 900px) {
+            .grid-2,
+            .grid-4 {
+                grid-template-columns: 1fr;
+            }
+        }
+ 
+        /* Stats */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+ 
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+ 
+        .stat-card.success::before {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+        }
+ 
+        .stat-card.warning::before {
+            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+        }
+ 
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 12px;
+            background: rgba(52, 152, 219, 0.1);
+        }
+ 
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+ 
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+ 
+        .stat-unit {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-left: 4px;
+        }
+ 
+        /* Forms */
+        .form-group-analytics {
+            margin-bottom: 20px;
+        }
+ 
+        .form-label-analytics {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+ 
+        .form-control-analytics {
+            width: 100%;
+            padding: 14px 16px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+        }
+ 
+        .form-control-analytics:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+ 
+        select.form-control-analytics {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%237f8c8d' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+ 
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 16px;
+        }
+ 
+        .chart-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+ 
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+ 
+        /* Operations */
+        .operations-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+ 
+        .operation-item {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 16px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+ 
+        .operation-item:hover {
+            border-color: var(--accent-blue);
+            transform: translateX(4px);
+            background: var(--bg-card);
+        }
+ 
+        .operation-number {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+        }
+ 
+        .operation-info {
+            flex: 1;
+        }
+ 
+        .operation-time {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+ 
+        .operation-duration {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+ 
+        .operation-stats {
+            display: flex;
+            gap: 24px;
+        }
+ 
+        .operation-stat {
+            text-align: center;
+        }
+ 
+        .operation-stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+ 
+        .operation-stat-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+ 
+        /* Alerts */
+        .alerts-panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+ 
+        .alert-item {
+            display: flex;
+            gap: 12px;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+ 
+        .alert-item:last-child {
+            margin-bottom: 0;
+        }
+ 
+        .alert-item.critical {
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+        }
+ 
+        .alert-item.warning {
+            background: rgba(243, 156, 18, 0.1);
+            border: 1px solid rgba(243, 156, 18, 0.3);
+        }
+ 
+        .alert-item.info {
+            background: rgba(52, 152, 219, 0.1);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+ 
+        .alert-icon {
+            font-size: 20px;
+        }
+ 
+        .alert-content {
+            flex: 1;
+        }
+ 
+        .alert-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+ 
+        .alert-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+ 
+        .alert-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+ 
+        /* Loading & Empty */
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+        }
+ 
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+ 
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+ 
+        .loading-text {
+            color: var(--text-secondary);
+        }
+ 
+        .empty-state-analytics {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 40px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            text-align: center;
+        }
+ 
+        .empty-icon {
+            font-size: 56px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+ 
+        .empty-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+ 
+        .empty-message {
+            color: var(--text-secondary);
+            max-width: 400px;
+        }
+ 
+        /* Breadcrumb */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+ 
+        .breadcrumb-item {
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+ 
+        .breadcrumb-item:hover {
+            color: var(--text-primary);
+        }
+ 
+        .breadcrumb-item.active {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+ 
+        .breadcrumb-separator {
+            color: var(--text-muted);
+        }
+ 
+        /* Views & Tabs */
+        .view-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+ 
+        .view-section.active {
+            display: block;
+        }
+ 
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+ 
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+ 
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+ 
+        .tab {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+ 
+        .tab:hover {
+            color: var(--text-primary);
+        }
+ 
+        .tab.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+ 
+        .tab-content {
+            display: none;
+        }
+ 
+        .tab-content.active {
+            display: block;
+        }
+ 
+        /* Date Cards */
+        .date-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+ 
+        .date-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+ 
+        .date-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+ 
+        .date-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+ 
+        .date-card-day {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+ 
+        .date-card-month {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+ 
+        /* Dropdown */
+        .dropdown {
+            position: relative;
+        }
+ 
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px;
+            min-width: 180px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+ 
+        .dropdown-menu.show {
+            display: block;
+        }
+ 
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+ 
+        .dropdown-item:hover {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+ 
+        .hidden {
+            display: none !important;
+        }
+ 
+        .mb-24 {
+            margin-bottom: 24px;
+        }
+ 
+        /* Quick Stats in sidebar area */
+        .quick-stats-bar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+ 
+        .quick-stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+ 
+        .quick-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+ 
+        .quick-stat-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        /* Granularity Toggle */
+        .granularity-toggle {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 4px;
+            width: fit-content;
+            margin-bottom: 16px;
+        }
+
+        .gran-btn {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .gran-btn:hover { color: var(--text-primary); }
+
+        .gran-btn.active {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        }
+
+        .gran-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Time Range Filter */
+        .time-range-filter {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .time-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        .time-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+
+        .time-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        /* Operation Banner */
+        .operation-banner {
+            padding: 16px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .operation-banner.running {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+
+        .operation-banner.idle {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .banner-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 1.5s infinite;
+        }
+
+        .operation-banner.idle .banner-dot { animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Current Metrics Summary Cards */
+        .summary-card-5min {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        .summary-label-5min {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .summary-value-5min {
+            font-size: 22px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+        }
+
+        /* Command History */
+        .command-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            margin-bottom: 8px;
+        }
+
+        .command-status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .command-status.start { background: rgba(39,174,96,0.15); color: #27ae60; }
+        .command-status.stop { background: rgba(231,76,60,0.15); color: #e74c3c; }
+
+        /* Heatmap */
+        .heatmap-container {
+            margin-top: 12px;
+        }
+
+        .heatmap-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .heatmap-header-cell {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-align: center;
+            flex: 1;
+        }
+
+        .heatmap-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .heatmap-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            width: 60px;
+            flex-shrink: 0;
+        }
+
+        .heatmap-cells {
+            display: flex;
+            gap: 2px;
+            flex: 1;
+        }
+
+        .heatmap-cell {
+            flex: 1;
+            height: 40px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: default;
+            position: relative;
+        }
+
+        .heatmap-cell span {
+            font-size: 9px;
+            font-weight: 600;
+            color: rgba(0,0,0,0.6);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .heatmap-legend-gradient { display: flex; gap: 2px; }
+
+        .heatmap-legend-item {
+            width: 20px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .mb-16 { margin-bottom: 16px; }
+        .mt-24 { margin-top: 24px; }
+        .collapsible-body { transition: all 0.2s; }
+    </style>
+</head>
+ 
+<body>
+    <div class="container">
+        <div class="nav-bar">
+            <a href="{{ url_for('press_shop_reports.press_shop_details') }}">Press Shop Reports</a>
+            <a href="{{ url_for('press_portal.operations_index') }}">Operations</a>
+            <a href="{{ url_for('press_portal.monitoring_dashboard') }}">Monitoring</a>
+            <a href="{{ url_for('press_portal.raw_data_export') }}">Raw Data</a>
+            <a href="{{ url_for('press_portal.analytics_dashboard') }}" class="active">Analytics Dashboard</a>
+            <a href="{{ url_for('production_bp.press_reports_entry') }}" >Press Reports Entry</a>
+            <a href="{{ url_for('press_portal.admin_login') }}">Admin</a>
+            <a href="{{ url_for('index') }}">← Back to Main Dashboard</a>
+        </div>
+ 
+        <header>
+            <div>
+                <h1>Operations Analytics</h1>
+                <p class="press-location">Analyze performance data across press machines</p>
+            </div>
+            <div class="quick-stat-item">
+                <span class="quick-stat-label">Today's Date</span>
+                <span class="quick-stat-value" id="todayDate">Loading...</span>
+            </div>
+        </header>
+ 
+        <div class="main-content">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+ 
+            <!-- View 1: Selection -->
+            <section id="view-selection" class="view-section active">
+                <div class="page-header">
+                    <div>
+                        <h2 class="page-title">Select Press Machine</h2>
+                        <p class="page-subtitle">Choose a press machine and date range to analyze performance data</p>
+                    </div>
+                </div>
+                <div class="analytics-card" style="max-width: 600px;">
+                    <div class="form-group-analytics">
+                        <label class="form-label-analytics">Select Press Machine</label>
+                        <select id="pressSelect" class="form-control-analytics">
+                            <option value="">Loading presses...</option>
+                        </select>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group-analytics">
+                            <label class="form-label-analytics">Start Date</label>
+                            <input type="date" id="startDate" class="form-control-analytics">
+                        </div>
+                        <div class="form-group-analytics">
+                            <label class="form-label-analytics">End Date</label>
+                            <input type="date" id="endDate" class="form-control-analytics">
+                        </div>
+                    </div>
+                    <button class="btn-analytics btn-analytics-primary" onclick="loadAvailableDates()" style="width: 100%; margin-top: 10px;">
+                        Search Available Dates
+                    </button>
+                </div>
+            </section>
+ 
+            <!-- View 2: Dates -->
+            <section id="view-dates" class="view-section">
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item" onclick="showView('selection')">Analytics</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item active" id="breadcrumb-press">Press</span>
+                </div>
+                <div class="page-header">
+                    <div>
+                        <h2 class="page-title" id="dates-title">Available Dates</h2>
+                        <p class="page-subtitle">Select a date to view detailed analysis</p>
+                    </div>
+                    <button class="btn-analytics btn-analytics-secondary" onclick="showView('selection')">← Back</button>
+                </div>
+                <div id="dates-loading" class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading dates...</div>
+                </div>
+                <div id="dates-content" class="hidden">
+                    <div id="dates-grid" class="date-cards-grid"></div>
+                </div>
+                <div id="dates-empty" class="empty-state-analytics hidden">
+                    <div class="empty-icon">📅</div>
+                    <h3 class="empty-title">No Data Available</h3>
+                    <p class="empty-message">No reports found for the selected date range.</p>
+                </div>
+            </section>
+ 
+            <!-- View 3: Day Analysis -->
+            <section id="view-day" class="view-section">
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item" onclick="showView('selection')">Analytics</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item" onclick="showView('dates')" id="breadcrumb-press-2">Press</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item active" id="breadcrumb-date">Date</span>
+                </div>
+                <div class="page-header">
+                    <div>
+                        <h2 class="page-title" id="day-title">Daily Analysis</h2>
+                        <p class="page-subtitle" id="day-subtitle">Comprehensive view</p>
+                    </div>
+                    <div class="header-actions">
+                        <div class="dropdown">
+                            <button class="btn-analytics btn-analytics-secondary" onclick="toggleExportMenu()">📥 Export</button>
+                            <div id="export-menu" class="dropdown-menu">
+                                <div class="dropdown-item" onclick="exportToCSV()">📊 Export CSV</div>
+                            </div>
+                        </div>
+                        <button class="btn-analytics btn-analytics-secondary" onclick="showView('dates')">← Back</button>
+                    </div>
+                </div>
+                <div id="day-loading" class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading analysis...</div>
+                </div>
+                <div id="day-content" class="hidden">
+                    <!-- Summary stat tiles (from daily report / KBI) -->
+                    <div class="grid-4 mb-24" id="day-stats"></div>
+
+                    <!-- Operation Banner -->
+                    <div id="operation-banner" class="operation-banner hidden"></div>
+
+                    <!-- Current Metrics (5-min mode) -->
+                    <div id="current-metrics" class="grid-4 mb-24 hidden"></div>
+
+                    <!-- Granularity Toggle -->
+                    <div class="granularity-toggle">
+                        <button id="gran-5min"  class="gran-btn" onclick="switchGranularity('5min')">⚡ 5 Min</button>
+                        <button id="gran-30min" class="gran-btn" onclick="switchGranularity('30min')">📊 30 Min</button>
+                        <button id="gran-24hr"  class="gran-btn" onclick="switchGranularity('24hr')">📅 24 Hr</button>
+                    </div>
+
+                    <!-- Time Range Filter (5-min mode only) -->
+                    <div id="time-range-filter" class="time-range-filter hidden">
+                        <button class="time-btn active" onclick="applyTimeRange(24)">Full Day</button>
+                        <button class="time-btn" onclick="applyTimeRange(12)">Last 12h</button>
+                        <button class="time-btn" onclick="applyTimeRange(6)">Last 6h</button>
+                        <button class="time-btn" onclick="applyTimeRange(3)">Last 3h</button>
+                        <button class="time-btn" onclick="applyTimeRange(1)">Last 1h</button>
+                    </div>
+
+                    <!-- Tabs -->
+                    <div class="tabs">
+                        <div class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
+                        <div class="tab" data-tab="operations" onclick="switchTab('operations')">Operations</div>
+                        <div class="tab" data-tab="alerts" onclick="switchTab('alerts')">Alerts</div>
+                    </div>
+
+                    <div id="tab-overview" class="tab-content active">
+                        <!-- 30-min charts (default / 30min mode) -->
+                        <div id="charts-30min">
+                            <div class="grid-2 mb-24">
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Stroke Rate</h3>
+                                    <div class="chart-container"><canvas id="chart-stroke-rate"></canvas></div>
+                                </div>
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Temperature</h3>
+                                    <div class="chart-container"><canvas id="chart-temperature"></canvas></div>
+                                </div>
+                            </div>
+                            <div class="grid-2">
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Vibration</h3>
+                                    <div class="chart-container"><canvas id="chart-vibration"></canvas></div>
+                                </div>
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Time Utilization</h3>
+                                    <div class="chart-container"><canvas id="chart-utilization"></canvas></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5-min charts (shown when 5 Min granularity selected) -->
+                        <div id="charts-5min" class="hidden">
+                            <div class="grid-2 mb-24">
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Stroke Count Over Time</h3>
+                                    <div class="chart-container"><canvas id="strokeCountChart"></canvas></div>
+                                </div>
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Stroke Rate Over Time</h3>
+                                    <div class="chart-container"><canvas id="strokeRateChart"></canvas></div>
+                                </div>
+                            </div>
+                            <div class="grid-2 mb-24">
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Temperature Over Time</h3>
+                                    <div class="chart-container"><canvas id="temperatureChart"></canvas></div>
+                                </div>
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Vibration Over Time</h3>
+                                    <div class="chart-container"><canvas id="vibrationChart"></canvas></div>
+                                </div>
+                            </div>
+                            <div class="chart-card mb-24">
+                                <h3 class="chart-title">Total Strokes by Hour</h3>
+                                <div class="chart-container"><canvas id="strokesPerHourChart"></canvas></div>
+                            </div>
+                            <div class="chart-card">
+                                <h3 class="chart-title">Hourly Activity Heatmap</h3>
+                                <div class="heatmap-container" id="heatmapContainer"></div>
+                            </div>
+                        </div>
+
+                        <!-- 24-hr summary view (shown when 24 Hr granularity selected) -->
+                        <div id="charts-24hr" class="hidden">
+                            <div class="grid-2 mb-24">
+                                <div class="chart-card">
+                                    <h3 class="chart-title">Time Utilization</h3>
+                                    <div class="chart-container"><canvas id="chart-utilization-24"></canvas></div>
+                                </div>
+                                <div class="analytics-card">
+                                    <h3 class="card-title mb-16">Daily Summary</h3>
+                                    <div id="daily-summary-24hr"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tab-operations" class="tab-content">
+                        <div class="analytics-card">
+                            <div class="card-header">
+                                <h3 class="card-title">Operations List</h3>
+                                <span class="card-badge badge-info" id="operations-count">0</span>
+                            </div>
+                            <div id="operations-list" class="operations-list"></div>
+                        </div>
+                    </div>
+
+                    <div id="tab-alerts" class="tab-content">
+                        <div class="alerts-panel">
+                            <div class="card-header">
+                                <h3 class="card-title">Alerts</h3>
+                            </div>
+                            <div id="alerts-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Command History (collapsible) -->
+                    <div id="command-history-section" class="mt-24 hidden">
+                        <div class="analytics-card">
+                            <div class="card-header" onclick="toggleCommandHistory()" style="cursor:pointer;user-select:none">
+                                <h3 class="card-title">Recent Commands</h3>
+                                <span id="cmd-toggle-icon" style="color:var(--text-muted)">▼</span>
+                            </div>
+                            <div id="command-history-body" class="hidden">
+                                <div id="command-history-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="day-empty" class="empty-state-analytics hidden">
+                    <div class="empty-icon">📊</div>
+                    <h3 class="empty-title">No Data</h3>
+                    <p class="empty-message">No data for this date.</p>
+                </div>
+            </section>
+ 
+            <!-- View 4: Operation Detail -->
+            <section id="view-operation" class="view-section">
+                <div class="breadcrumb">
+                    <span class="breadcrumb-item" onclick="showView('selection')">Analytics</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item" onclick="showView('dates')" id="breadcrumb-press-3">Press</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item" onclick="showView('day')" id="breadcrumb-date-2">Date</span>
+                    <span class="breadcrumb-separator">›</span>
+                    <span class="breadcrumb-item active" id="breadcrumb-operation">Operation</span>
+                </div>
+                <div class="page-header">
+                    <div>
+                        <h2 class="page-title" id="operation-title">Operation Analysis</h2>
+                        <p class="page-subtitle" id="operation-subtitle">Details</p>
+                    </div>
+                    <button class="btn-analytics btn-analytics-secondary" onclick="showView('day')">← Back</button>
+                </div>
+                <div id="operation-loading" class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <div class="loading-text">Loading...</div>
+                </div>
+                <div id="operation-content" class="hidden">
+                    <div class="grid-4 mb-24" id="operation-stats"></div>
+                    <div class="grid-2 mb-24">
+                        <div class="chart-card">
+                            <h3 class="chart-title">Stroke Rate</h3>
+                            <div class="chart-container"><canvas id="chart-op-stroke-rate"></canvas></div>
+                        </div>
+                        <div class="chart-card">
+                            <h3 class="chart-title">Temperature</h3>
+                            <div class="chart-container"><canvas id="chart-op-temperature"></canvas></div>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="chart-card">
+                            <h3 class="chart-title">Vibration</h3>
+                            <div class="chart-container"><canvas id="chart-op-vibration"></canvas></div>
+                        </div>
+                        <div class="alerts-panel">
+                            <div class="card-header">
+                                <h3 class="card-title">Alerts</h3>
+                            </div>
+                            <div id="operation-alerts"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+ 
+        <footer>
+            <p>&copy; 2025 Khandelwal Busar Industries. All rights reserved.</p>
+        </footer>
+    </div>
+ 
+    <script>
+        // State
+        let state = {
+            selectedPress: '',
+            selectedDate: '',
+            selectedOperation: null,
+            dayData: null,
+            charts: {},
+            granularity: '5min',   // '5min' | '30min' | '24hr'
+            commandHistory: [],
+            currentTimeRange: 24   // hours for time-range filter
+        };
+        const THRESHOLDS = { temperature: { warning: 65, critical: 80 }, vibration: { warning: 8, critical: 12 } };
+
+        // 5-min chart instances (time-axis charts)
+        let strokeCountChart5, strokeRateChart5, temperatureChart5, vibrationChart5, strokesPerHourChart5;
+
+        // Chart colors for light theme
+        const CHART_COLORS = {
+            blue: '#3498db',
+            red: '#e74c3c',
+            yellow: '#f39c12',
+            green: '#27ae60',
+            purple: '#667eea',
+            gray: '#95a5a6'
+        };
+
+        // Preselected press from backend (set via URL ?press= param)
+        const PRESELECTED_PRESS = '{{ preselected_press | default("") }}';
+
+        // Init
+        document.addEventListener('DOMContentLoaded', function () {
+            const today = new Date();
+            document.getElementById('todayDate').textContent = today.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 14);
+            document.getElementById('endDate').valueAsDate = today;
+            document.getElementById('startDate').valueAsDate = weekAgo;
+            loadPresses();
+            document.addEventListener('click', e => { if (!e.target.closest('.dropdown')) document.getElementById('export-menu').classList.remove('show'); });
+        });
+ 
+        // Load Presses
+        async function loadPresses() {
+            try {
+                const res = await fetch('/press/api/monitoring/press_list');
+                const data = await res.json();
+                const sel = document.getElementById('pressSelect');
+                sel.innerHTML = '<option value="">Select a press...</option>';
+                if (data.presses) data.presses.forEach(p => sel.add(new Option(p.press_name, p.press_name)));
+                // Auto-select press if coming from monitoring tile redirect
+                if (PRESELECTED_PRESS && PRESELECTED_PRESS.trim()) {
+                    sel.value = PRESELECTED_PRESS.trim();
+                    if (sel.value) loadAvailableDates();
+                }
+            } catch (e) { console.error(e); }
+        }
+ 
+        // Load Available Dates
+        async function loadAvailableDates() {
+            state.selectedPress = document.getElementById('pressSelect').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            if (!state.selectedPress) { alert('Select a press'); return; }
+            if (!startDate || !endDate) { alert('Select dates'); return; }
+ 
+            showView('dates');
+            document.getElementById('dates-loading').classList.remove('hidden');
+            document.getElementById('dates-content').classList.add('hidden');
+            document.getElementById('dates-empty').classList.add('hidden');
+            document.getElementById('breadcrumb-press').textContent = state.selectedPress;
+            document.getElementById('breadcrumb-press-2').textContent = state.selectedPress;
+            document.getElementById('breadcrumb-press-3').textContent = state.selectedPress;
+            document.getElementById('dates-title').textContent = `${state.selectedPress} - Available Dates`;
+ 
+            try {
+                const res = await fetch(`/press/api/analytics/v2/available-dates/${state.selectedPress}`);
+                const data = await res.json();
+                const start = new Date(startDate), end = new Date(endDate);
+                const filtered = (data.available_dates || []).filter(d => { const dt = new Date(d); return dt >= start && dt <= end; });
+                document.getElementById('dates-loading').classList.add('hidden');
+                if (filtered.length === 0) document.getElementById('dates-empty').classList.remove('hidden');
+                else { displayDateCards(filtered); document.getElementById('dates-content').classList.remove('hidden'); }
+            } catch (e) { console.error(e); document.getElementById('dates-loading').classList.add('hidden'); document.getElementById('dates-empty').classList.remove('hidden'); }
+        }
+ 
+        // Load Day Analysis
+        async function loadDayAnalysis(date) {
+            state.selectedDate = date;
+            state.currentTimeRange = 24;
+            showView('day');
+            document.getElementById('day-loading').classList.remove('hidden');
+            document.getElementById('day-content').classList.add('hidden');
+            document.getElementById('day-empty').classList.add('hidden');
+
+            const dateObj = new Date(date);
+            const fmt = dateObj.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('breadcrumb-date').textContent = fmt;
+            document.getElementById('breadcrumb-date-2').textContent = fmt;
+            document.getElementById('day-title').textContent = fmt;
+            document.getElementById('day-subtitle').textContent = `Analysis for ${state.selectedPress}`;
+
+            try {
+                const res = await fetch(`/press/api/analytics/v2/day-analysis/${state.selectedPress}/${date}`);
+                const data = await res.json();
+                if (!data.data_available) {
+                    document.getElementById('day-loading').classList.add('hidden');
+                    document.getElementById('day-empty').classList.remove('hidden');
+                    return;
+                }
+                state.dayData = data;
+                state.commandHistory = data.command_history || [];
+
+                // Determine default granularity based on data availability
+                const has5min = data.five_min_data && data.five_min_data.length > 0;
+                const has30min = data.thirty_min_data && data.thirty_min_data.length > 0;
+                state.granularity = has5min ? '5min' : (has30min ? '30min' : '24hr');
+
+                // Update granularity toggle buttons
+                updateGranularityUI();
+
+                renderDayStats(data);
+                renderOperationBanner(data);
+                renderCurrentMetrics(data);
+                renderOperationsList(data);
+                renderDayCharts(data);
+                renderAlerts(data);
+                renderCommandHistory(data);
+
+                document.getElementById('day-loading').classList.add('hidden');
+                document.getElementById('day-content').classList.remove('hidden');
+            } catch (e) {
+                console.error(e);
+                document.getElementById('day-loading').classList.add('hidden');
+                document.getElementById('day-empty').classList.remove('hidden');
+            }
+        }
+ 
+        // Load Operation Analysis
+        async function loadOperationAnalysis(operation, idx) {
+            state.selectedOperation = { ...operation, index: idx };
+            showView('operation');
+            document.getElementById('operation-loading').classList.remove('hidden');
+            document.getElementById('operation-content').classList.add('hidden');
+            document.getElementById('breadcrumb-operation').textContent = `Operation #${idx}`;
+            document.getElementById('operation-title').textContent = `Operation #${idx}`;
+            const st = new Date(operation.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            const et = new Date(operation.end_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('operation-subtitle').textContent = `${st} - ${et} • ${formatDuration(operation.duration_minutes)}`;
+ 
+            try {
+                const res = await fetch(`/press/api/analytics/v2/operation-detail/${state.selectedPress}?start_time=${encodeURIComponent(operation.start_time)}&end_time=${encodeURIComponent(operation.end_time)}`);
+                const data = await res.json();
+                renderOperationStats(operation, data); renderOperationCharts(data); renderOperationAlerts(data);
+                document.getElementById('operation-loading').classList.add('hidden');
+                document.getElementById('operation-content').classList.remove('hidden');
+            } catch (e) { console.error(e); document.getElementById('operation-loading').classList.add('hidden'); }
+        }
+ 
+        // Render Functions
+        function displayDateCards(dates) {
+            const c = document.getElementById('dates-grid'); c.innerHTML = '';
+            dates.forEach(date => {
+                const d = new Date(date);
+                const card = document.createElement('div'); card.className = 'date-card'; card.onclick = () => loadDayAnalysis(date);
+                card.innerHTML = `<div class="date-card-header"><div><div class="date-card-day">${d.getDate()}</div><div class="date-card-month">${d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</div></div><span class="card-badge badge-info">${d.toLocaleDateString('en-IN', { weekday: 'short' })}</span></div><div style="color: var(--text-secondary); font-size: 13px;">Click to view →</div>`;
+                c.appendChild(card);
+            });
+        }
+ 
+        function renderDayStats(data) {
+            const c = document.getElementById('day-stats');
+            const daily = data.daily_report?.daily_summary || {};
+            const kbi = data.kbi_data || {};
+            const strokes = daily.production?.total_strokes || kbi.strokes || 0;
+            const rate = daily.production?.avg_stroke_rate_per_minute || 0;
+            const runTime = kbi.run_time_hours || 0;
+            const onTime = kbi.on_time_hours || 0;
+            const eff = kbi.efficiency || (onTime > 0 ? ((runTime / onTime) * 100).toFixed(1) : 0);
+            c.innerHTML = `
+                <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-label">Total Strokes</div><div class="stat-value">${strokes.toLocaleString()}</div></div>
+                <div class="stat-card success"><div class="stat-icon" style="background:rgba(39,174,96,0.1)">📈</div><div class="stat-label">Avg Rate</div><div class="stat-value">${rate.toFixed(1)}<span class="stat-unit">SPM</span></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:rgba(102,126,234,0.1)">⏱️</div><div class="stat-label">Run Time</div><div class="stat-value">${runTime.toFixed(2)}<span class="stat-unit">hrs</span></div></div>
+                <div class="stat-card ${eff >= 70 ? 'success' : eff >= 40 ? '' : 'warning'}"><div class="stat-icon" style="background:rgba(243,156,18,0.1)">🎯</div><div class="stat-label">Efficiency</div><div class="stat-value">${eff}<span class="stat-unit">%</span></div></div>`;
+        }
+ 
+        function renderOperationsList(data) {
+            const c = document.getElementById('operations-list');
+            const ops = data.daily_report?.operations || [];
+            document.getElementById('operations-count').textContent = `${ops.length} Operations`;
+            if (ops.length === 0) { c.innerHTML = '<div class="empty-state-analytics" style="padding:40px"><div class="empty-icon">⚙️</div><h3 class="empty-title">No Operations</h3></div>'; return; }
+            c.innerHTML = ops.map((op, i) => {
+                const st = new Date(op.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                const et = new Date(op.end_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+                return `<div class="operation-item" onclick='loadOperationAnalysis(${JSON.stringify(op).replace(/'/g, "&#39;")}, ${i + 1})'><div class="operation-number">${i + 1}</div><div class="operation-info"><div class="operation-time">${st} - ${et}</div><div class="operation-duration">${formatDuration(op.duration_minutes)}</div></div><div class="operation-stats"><div class="operation-stat"><div class="operation-stat-value">${(op.production?.total_strokes || 0).toLocaleString()}</div><div class="operation-stat-label">Strokes</div></div><div class="operation-stat"><div class="operation-stat-value">${(op.production?.stroke_rate_per_minute || 0).toFixed(1)}</div><div class="operation-stat-label">SPM</div></div></div></div>`;
+            }).join('');
+        }
+ 
+        function renderDayCharts(data) {
+            // Destroy all existing charts
+            Object.keys(state.charts).forEach(k => { if (state.charts[k]) { state.charts[k].destroy(); } });
+            state.charts = {};
+            if (strokeCountChart5) { strokeCountChart5.destroy(); strokeCountChart5 = null; }
+            if (strokeRateChart5)  { strokeRateChart5.destroy();  strokeRateChart5 = null; }
+            if (temperatureChart5) { temperatureChart5.destroy(); temperatureChart5 = null; }
+            if (vibrationChart5)   { vibrationChart5.destroy();   vibrationChart5 = null; }
+            if (strokesPerHourChart5) { strokesPerHourChart5.destroy(); strokesPerHourChart5 = null; }
+
+            // Show/hide chart sections based on granularity
+            document.getElementById('charts-30min').classList.add('hidden');
+            document.getElementById('charts-5min').classList.add('hidden');
+            document.getElementById('charts-24hr').classList.add('hidden');
+            document.getElementById('time-range-filter').classList.add('hidden');
+
+            if (state.granularity === '5min') {
+                document.getElementById('charts-5min').classList.remove('hidden');
+                document.getElementById('time-range-filter').classList.remove('hidden');
+                render5MinCharts(data);
+            } else if (state.granularity === '30min') {
+                document.getElementById('charts-30min').classList.remove('hidden');
+                render30MinCharts(data);
+            } else {
+                document.getElementById('charts-24hr').classList.remove('hidden');
+                render24HrView(data);
+            }
+        }
+
+        function render30MinCharts(data) {
+            const d30 = data.thirty_min_data || [];
+            const kbi = data.kbi_data || {};
+            const labels = d30.map(d => new Date(d.analysis_timestamp || d.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+            const rates = d30.map(d => (d.stroke_count || {}).stroke_rate_per_minute || 0);
+            const temps = d30.map(d => { const t = d.temperature?.avg; return (t && t > -100) ? t : null; });
+            const vibs = d30.map(d => d.vibration?.avg || null);
+            state.charts['stroke-rate'] = createChart('chart-stroke-rate', labels, rates, 'Stroke Rate', CHART_COLORS.blue);
+            state.charts['temperature'] = createChart('chart-temperature', labels, temps, 'Temperature', CHART_COLORS.red);
+            state.charts['vibration'] = createChart('chart-vibration', labels, vibs, 'Vibration', CHART_COLORS.yellow);
+            const on = kbi.on_time_hours || 0, run = kbi.run_time_hours || 0, idle = kbi.idle_time_hours || 0;
+            const ctx = document.getElementById('chart-utilization');
+            if (ctx) {
+                state.charts['utilization'] = new Chart(ctx, { type: 'doughnut', data: { labels: ['Run', 'Idle', 'Off'], datasets: [{ data: [run, idle, Math.max(0, 24 - on)], backgroundColor: [CHART_COLORS.green, CHART_COLORS.yellow, CHART_COLORS.gray], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#7f8c8d', font: { family: "'DM Sans', sans-serif" } } } }, cutout: '70%' } });
+            }
+        }
+
+        function render24HrView(data) {
+            const kbi = data.kbi_data || {};
+            const on = kbi.on_time_hours || 0, run = kbi.run_time_hours || 0, idle = kbi.idle_time_hours || 0;
+            const ctx = document.getElementById('chart-utilization-24');
+            if (ctx) {
+                new Chart(ctx, { type: 'doughnut', data: { labels: ['Run', 'Idle', 'Off'], datasets: [{ data: [run, idle, Math.max(0, 24 - on)], backgroundColor: [CHART_COLORS.green, CHART_COLORS.yellow, CHART_COLORS.gray], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, cutout: '70%' } });
+            }
+            const daily = data.daily_report?.daily_summary || {};
+            const prod = daily.production || {};
+            const c = document.getElementById('daily-summary-24hr');
+            if (c) {
+                c.innerHTML = `
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)"><span style="color:var(--text-muted)">Total Strokes</span><strong>${(prod.total_strokes||0).toLocaleString()}</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)"><span style="color:var(--text-muted)">Avg Stroke Rate</span><strong>${(prod.avg_stroke_rate_per_minute||0).toFixed(1)} SPM</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)"><span style="color:var(--text-muted)">Run Time</span><strong>${(kbi.run_time_hours||0).toFixed(2)} hrs</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)"><span style="color:var(--text-muted)">On Time</span><strong>${(kbi.on_time_hours||0).toFixed(2)} hrs</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--text-muted)">Efficiency</span><strong>${kbi.efficiency || 0}%</strong></div>
+                    </div>`;
+            }
+        }
+
+        function render5MinCharts(data) {
+            const allPts = data.five_min_data || [];
+            const filtered = filterDataByTimeRange5(allPts, state.currentTimeRange);
+            createStrokeCountChart5(filtered);
+            createStrokeRateChart5(filtered);
+            createTemperatureChart5(filtered);
+            createVibrationChart5(filtered);
+            createStrokesPerHourChart5(allPts);   // Hourly always uses full day data
+            createHeatmap5(allPts);
+        }
+ 
+        function renderAlerts(data) {
+            const c = document.getElementById('alerts-list');
+            const alerts = data.alerts || [];
+            if (alerts.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><div style="font-size:48px;margin-bottom:16px">✅</div>No alerts</div>'; return; }
+            c.innerHTML = alerts.slice(0, 20).map(a => `<div class="alert-item ${a.type}"><span class="alert-icon">${a.icon}</span><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-message">${a.message}</div></div><div class="alert-time">${a.time}</div></div>`).join('');
+        }
+ 
+        function renderOperationStats(op, data) {
+            const c = document.getElementById('operation-stats');
+            const prod = op.production || {};
+            const agg = data.aggregated || {};
+            c.innerHTML = `
+                <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-label">Total Strokes</div><div class="stat-value">${(prod.total_strokes || 0).toLocaleString()}</div></div>
+                <div class="stat-card success"><div class="stat-icon" style="background:rgba(39,174,96,0.1)">📈</div><div class="stat-label">Rate</div><div class="stat-value">${(prod.stroke_rate_per_minute || 0).toFixed(1)}<span class="stat-unit">SPM</span></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:rgba(231,76,60,0.1)">🌡️</div><div class="stat-label">Avg Temp</div><div class="stat-value">${agg.temperature ? agg.temperature.avg.toFixed(1) : 'N/A'}<span class="stat-unit">°C</span></div></div>
+                <div class="stat-card"><div class="stat-icon" style="background:rgba(243,156,18,0.1)">📳</div><div class="stat-label">Avg Vib</div><div class="stat-value">${agg.vibration ? agg.vibration.avg.toFixed(2) : 'N/A'}</div></div>`;
+        }
+ 
+        function renderOperationCharts(data) {
+            ['op-stroke-rate', 'op-temperature', 'op-vibration'].forEach(k => { if (state.charts[k]) { state.charts[k].destroy(); delete state.charts[k]; } });
+            // Prefer 5-min data for operation charts if available
+            const d5 = data.five_min_data || [];
+            const d30 = data.thirty_min_data || [];
+            const src = d5.length > 0 ? d5 : d30;
+            const use5 = d5.length > 0;
+            if (use5) {
+                // Use time-axis charts with 5-min data
+                const rateData = src.filter(p => p.stroke_rate !== null).map(p => ({ x: new Date(p.timestamp), y: p.stroke_rate }));
+                const tempData = src.filter(p => p.temperature?.avg != null).map(p => ({ x: new Date(p.timestamp), y: p.temperature.avg }));
+                const vibData = src.filter(p => p.vibration?.avg != null).map(p => ({ x: new Date(p.timestamp), y: p.vibration.avg }));
+                const timeOpts = { type: 'time', time: { unit: 'minute', displayFormats: { minute: 'HH:mm' } }, title: { display: true, text: 'Time' } };
+                ['chart-op-stroke-rate', 'chart-op-temperature', 'chart-op-vibration'].forEach(id => {
+                    const el = document.getElementById(id); if (el) el.parentElement.replaceChild(el.cloneNode(), el);
+                });
+                const mkTime = (id, datasets) => new Chart(document.getElementById(id), { type:'line', data:{ datasets }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x: timeOpts, y:{ beginAtZero:false } } } });
+                state.charts['op-stroke-rate'] = mkTime('chart-op-stroke-rate', [{ label:'Stroke Rate', data:rateData, borderColor: CHART_COLORS.blue, backgroundColor: CHART_COLORS.blue+'20', tension:0.4, fill:true }]);
+                state.charts['op-temperature'] = mkTime('chart-op-temperature', [{ label:'Temperature', data:tempData, borderColor: CHART_COLORS.red, backgroundColor: CHART_COLORS.red+'20', tension:0.4, fill:true }]);
+                state.charts['op-vibration'] = mkTime('chart-op-vibration', [{ label:'Vibration', data:vibData, borderColor: CHART_COLORS.yellow, backgroundColor: CHART_COLORS.yellow+'20', tension:0.4, fill:true }]);
+            } else {
+                const labels = d30.map(d => new Date(d.analysis_timestamp || d.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+                const rates = d30.map(d => (d.stroke_count || {}).stroke_rate_per_minute || 0);
+                const temps = d30.map(d => { const t = d.temperature?.avg; return (t && t > -100) ? t : null; });
+                const vibs = d30.map(d => d.vibration?.avg || null);
+                state.charts['op-stroke-rate'] = createChart('chart-op-stroke-rate', labels, rates, 'Stroke Rate', CHART_COLORS.blue);
+                state.charts['op-temperature'] = createChart('chart-op-temperature', labels, temps, 'Temperature', CHART_COLORS.red);
+                state.charts['op-vibration'] = createChart('chart-op-vibration', labels, vibs, 'Vibration', CHART_COLORS.yellow);
+            }
+        }
+ 
+        function renderOperationAlerts(data) {
+            const c = document.getElementById('operation-alerts');
+            const alerts = data.alerts || [];
+            if (alerts.length === 0) { c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-secondary)"><div style="font-size:48px;margin-bottom:16px">✅</div>No alerts</div>'; return; }
+            c.innerHTML = alerts.map(a => `<div class="alert-item ${a.type}"><span class="alert-icon">${a.icon}</span><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-message">${a.message}</div></div></div>`).join('');
+        }
+
+        // Granularity toggle
+        function switchGranularity(gran) {
+            const data = state.dayData;
+            if (!data) return;
+            if (gran === '5min' && (!data.five_min_data || data.five_min_data.length === 0)) return;
+            if (gran === '30min' && (!data.thirty_min_data || data.thirty_min_data.length === 0)) return;
+            state.granularity = gran;
+            updateGranularityUI();
+            renderDayCharts(data);
+            // Show/hide current metrics
+            const has5min = gran === '5min' && data.five_min_data && data.five_min_data.length > 0;
+            document.getElementById('current-metrics').classList.toggle('hidden', !has5min);
+        }
+
+        function updateGranularityUI() {
+            const data = state.dayData;
+            const has5min = data && data.five_min_data && data.five_min_data.length > 0;
+            const has30min = data && data.thirty_min_data && data.thirty_min_data.length > 0;
+            document.getElementById('gran-5min').disabled = !has5min;
+            document.getElementById('gran-30min').disabled = !has30min;
+            ['gran-5min', 'gran-30min', 'gran-24hr'].forEach(id => document.getElementById(id).classList.remove('active'));
+            document.getElementById('gran-' + state.granularity.replace('min','') + (state.granularity.includes('hr') ? '' : 'min')).classList.add('active');
+            // Fix id mapping
+            const idMap = { '5min': 'gran-5min', '30min': 'gran-30min', '24hr': 'gran-24hr' };
+            ['gran-5min', 'gran-30min', 'gran-24hr'].forEach(id => document.getElementById(id).classList.remove('active'));
+            if (idMap[state.granularity]) document.getElementById(idMap[state.granularity]).classList.add('active');
+            document.getElementById('gran-5min').title = has5min ? '' : 'No 5-min data for this date';
+        }
+
+        // Time range filter (5-min mode)
+        function applyTimeRange(hours) {
+            state.currentTimeRange = hours;
+            document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (state.dayData && state.granularity === '5min') render5MinCharts(state.dayData);
+        }
+
+        // Operation banner
+        function renderOperationBanner(data) {
+            const banner = document.getElementById('operation-banner');
+            const cmds = data.command_history || [];
+            if (cmds.length === 0) { banner.classList.add('hidden'); return; }
+            const latest = cmds[0];
+            const payload = latest.parsed_payload || {};
+            const status = (payload.status || '').toUpperCase();
+            if (status === 'START') {
+                banner.className = 'operation-banner running';
+                banner.innerHTML = `<div class="banner-dot"></div><span>🟢 Running — ${payload.operation || ''} ${payload.component ? '• ' + payload.component : ''} ${payload.operator ? '• Operator: ' + payload.operator : ''}</span>`;
+            } else {
+                banner.className = 'operation-banner idle';
+                banner.innerHTML = `<div class="banner-dot"></div><span>⚪ Press Idle</span>`;
+            }
+            banner.classList.remove('hidden');
+        }
+
+        // Current metrics cards (latest 5-min data point)
+        function renderCurrentMetrics(data) {
+            const c = document.getElementById('current-metrics');
+            const pts = data.five_min_data || [];
+            if (pts.length === 0) { c.classList.add('hidden'); return; }
+            const latest = pts[pts.length - 1];
+            const strokeCount = latest.stroke_count !== null ? latest.stroke_count : '—';
+            const strokeRate = latest.stroke_rate !== null ? (latest.stroke_rate || 0).toFixed(1) : '—';
+            const tempObj = latest.temperature;
+            const temp = (tempObj && typeof tempObj === 'object') ? (tempObj.avg || 0).toFixed(1) : (tempObj || '—');
+            const vibObj = latest.vibration;
+            const vib = (vibObj && typeof vibObj === 'object') ? (vibObj.avg || 0).toFixed(2) : (vibObj || '—');
+            c.innerHTML = `
+                <div class="summary-card-5min"><div class="summary-label-5min">Current Stroke Count</div><div class="summary-value-5min">${typeof strokeCount === 'number' ? strokeCount.toLocaleString() : strokeCount}</div></div>
+                <div class="summary-card-5min" style="border-left-color:#27ae60"><div class="summary-label-5min">Stroke Rate</div><div class="summary-value-5min">${strokeRate}<span style="font-size:13px;color:var(--text-muted)"> SPM</span></div></div>
+                <div class="summary-card-5min" style="border-left-color:#ff9800"><div class="summary-label-5min">Temperature</div><div class="summary-value-5min">${temp}<span style="font-size:13px;color:var(--text-muted)"> °C</span></div></div>
+                <div class="summary-card-5min" style="border-left-color:#9c27b0"><div class="summary-label-5min">Vibration</div><div class="summary-value-5min">${vib}</div></div>`;
+            if (state.granularity === '5min') c.classList.remove('hidden');
+        }
+
+        // Command history
+        function renderCommandHistory(data) {
+            const cmds = data.command_history || [];
+            const section = document.getElementById('command-history-section');
+            if (cmds.length === 0) { section.classList.add('hidden'); return; }
+            section.classList.remove('hidden');
+            const list = document.getElementById('command-history-list');
+            list.innerHTML = cmds.map(cmd => {
+                const payload = cmd.parsed_payload || {};
+                const status = (payload.status || '').toUpperCase();
+                const ts = cmd.timestamp ? new Date(cmd.timestamp).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+                return `<div class="command-item">
+                    <span class="command-status ${status === 'START' ? 'start' : 'stop'}">${status || 'CMD'}</span>
+                    <div style="flex:1">
+                        <div style="font-weight:600;color:var(--text-primary)">${payload.operation || 'Command'} ${payload.component ? '• ' + payload.component : ''}</div>
+                        <div style="font-size:12px;color:var(--text-muted)">${payload.operator ? 'Operator: ' + payload.operator : ''}</div>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-muted)">${ts}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function toggleCommandHistory() {
+            const body = document.getElementById('command-history-body');
+            const icon = document.getElementById('cmd-toggle-icon');
+            const isHidden = body.classList.toggle('hidden');
+            icon.textContent = isHidden ? '▼' : '▲';
+        }
+ 
+        // ============================================================
+        // 5-MIN CHART FUNCTIONS (time-axis, copied from monitoring detail)
+        // ============================================================
+
+        function calculateHourlyStrokesWithSplits(hour, dataPoints) {
+            const hourPoints = dataPoints.filter(point => {
+                if (point.stroke_count === null) return false;
+                const timestamp = new Date(point.timestamp);
+                return timestamp.getHours() === hour;
+            });
+            if (hourPoints.length === 0) return 0;
+            hourPoints.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const stopTimestamps = [];
+            if (state.commandHistory && Array.isArray(state.commandHistory)) {
+                state.commandHistory.forEach(cmd => {
+                    const payload = cmd.parsed_payload || {};
+                    if (payload.status && payload.status.toUpperCase() === 'STOP') {
+                        const cmdTime = new Date(cmd.timestamp);
+                        if (cmdTime.getHours() === hour) stopTimestamps.push(cmdTime.getTime());
+                    }
+                });
+            }
+            stopTimestamps.sort((a, b) => a - b);
+            if (stopTimestamps.length === 0) {
+                const diff = hourPoints[hourPoints.length - 1].stroke_count - hourPoints[0].stroke_count;
+                return diff >= 0 ? diff : 0;
+            }
+            let totalStrokes = 0, segmentStart = 0;
+            for (let i = 0; i < stopTimestamps.length; i++) {
+                const stopTime = stopTimestamps[i];
+                let lastBeforeStop = null;
+                for (let j = segmentStart; j < hourPoints.length; j++) {
+                    const pointTime = new Date(hourPoints[j].timestamp).getTime();
+                    if (pointTime <= stopTime) { lastBeforeStop = hourPoints[j]; }
+                    else { segmentStart = j; break; }
+                }
+                if (lastBeforeStop) {
+                    const segmentFirstPoint = hourPoints.find((p, idx) => {
+                        if (i === 0) return idx === 0;
+                        const prevStopTime = stopTimestamps[i - 1];
+                        return new Date(p.timestamp).getTime() > prevStopTime;
+                    });
+                    if (segmentFirstPoint) {
+                        const diff = lastBeforeStop.stroke_count - segmentFirstPoint.stroke_count;
+                        if (diff >= 0) totalStrokes += diff;
+                    }
+                }
+            }
+            if (segmentStart < hourPoints.length) {
+                const lastPoint = hourPoints[hourPoints.length - 1];
+                const firstAfterLastStop = hourPoints[segmentStart];
+                if (lastPoint && firstAfterLastStop) {
+                    const diff = lastPoint.stroke_count - firstAfterLastStop.stroke_count;
+                    if (diff >= 0) totalStrokes += diff;
+                }
+            }
+            return totalStrokes;
+        }
+
+        function filterDataByTimeRange5(data, hours) {
+            if (hours >= 24) return data;
+            if (data.length === 0) return data;
+            const timestamps = data.map(p => new Date(p.timestamp).getTime());
+            const maxTimestamp = Math.max(...timestamps);
+            const cutoff = new Date(maxTimestamp - hours * 60 * 60 * 1000);
+            return data.filter(point => new Date(point.timestamp) >= cutoff);
+        }
+
+        function createStrokeCountChart5(data) {
+            const ctx = document.getElementById('strokeCountChart');
+            if (!ctx) return;
+            const chartData = data.filter(p => p.stroke_count !== null).map(p => ({ x: new Date(p.timestamp), y: p.stroke_count }));
+            if (strokeCountChart5) strokeCountChart5.destroy();
+            strokeCountChart5 = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [{ label: 'Stroke Count', data: chartData, borderColor: '#2196f3', backgroundColor: 'rgba(33,150,243,0.1)', tension: 0.4, fill: true,
+                    segment: {
+                        borderColor: ctx => { const gap = ctx.p1.parsed.x - ctx.p0.parsed.x; return gap > 6*60*1000 ? '#dc3545' : '#2196f3'; },
+                        borderDash: ctx => { const gap = ctx.p1.parsed.x - ctx.p0.parsed.x; return gap > 6*60*1000 ? [5,5] : []; }
+                    }
+                }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { x: { type: 'time', time: { unit: state.currentTimeRange <= 3 ? 'minute' : 'hour', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Stroke Count' }, beginAtZero: false } } }
+            });
+        }
+
+        function createStrokeRateChart5(data) {
+            const ctx = document.getElementById('strokeRateChart');
+            if (!ctx) return;
+            const chartData = data.filter(p => p.stroke_rate !== null).map(p => ({ x: new Date(p.timestamp), y: p.stroke_rate }));
+            if (strokeRateChart5) strokeRateChart5.destroy();
+            strokeRateChart5 = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [{ label: 'Stroke Rate (per minute)', data: chartData, borderColor: '#4caf50', backgroundColor: 'rgba(76,175,80,0.1)', tension: 0.4, fill: true, spanGaps: false }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { x: { type: 'time', time: { unit: state.currentTimeRange <= 3 ? 'minute' : 'hour', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Strokes per Minute' }, beginAtZero: true } } }
+            });
+        }
+
+        function createTemperatureChart5(data) {
+            const ctx = document.getElementById('temperatureChart');
+            if (!ctx) return;
+            const avgData = data.filter(p => p.temperature && p.temperature.avg !== null).map(p => ({ x: new Date(p.timestamp), y: p.temperature.avg }));
+            const maxData = data.filter(p => p.temperature && p.temperature.max !== null).map(p => ({ x: new Date(p.timestamp), y: p.temperature.max }));
+            if (temperatureChart5) temperatureChart5.destroy();
+            temperatureChart5 = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'Average', data: avgData, borderColor: '#ff9800', backgroundColor: 'rgba(255,152,0,0.1)', tension: 0.4, fill: true },
+                    { label: 'Maximum', data: maxData, borderColor: '#f44336', backgroundColor: 'rgba(244,67,54,0.05)', tension: 0.4, fill: false, borderDash: [5,5] }
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top' } },
+                    scales: { x: { type: 'time', time: { unit: state.currentTimeRange <= 3 ? 'minute' : 'hour', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Temperature (°C)' }, beginAtZero: false } } }
+            });
+        }
+
+        function createVibrationChart5(data) {
+            const ctx = document.getElementById('vibrationChart');
+            if (!ctx) return;
+            const avgData = data.filter(p => p.vibration && p.vibration.avg !== null).map(p => ({ x: new Date(p.timestamp), y: p.vibration.avg }));
+            const maxData = data.filter(p => p.vibration && p.vibration.max !== null).map(p => ({ x: new Date(p.timestamp), y: p.vibration.max }));
+            if (vibrationChart5) vibrationChart5.destroy();
+            vibrationChart5 = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [
+                    { label: 'Average', data: avgData, borderColor: '#9c27b0', backgroundColor: 'rgba(156,39,176,0.1)', tension: 0.4, fill: true },
+                    { label: 'Maximum', data: maxData, borderColor: '#e91e63', backgroundColor: 'rgba(233,30,99,0.05)', tension: 0.4, fill: false, borderDash: [5,5] }
+                ] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true, position: 'top' } },
+                    scales: { x: { type: 'time', time: { unit: state.currentTimeRange <= 3 ? 'minute' : 'hour', displayFormats: { minute: 'HH:mm', hour: 'HH:mm' } }, title: { display: true, text: 'Time' } }, y: { title: { display: true, text: 'Vibration (mm/s)' }, beginAtZero: true } } }
+            });
+        }
+
+        function createStrokesPerHourChart5(data) {
+            const ctx = document.getElementById('strokesPerHourChart');
+            if (!ctx) return;
+            const labels = [], values = [], colors = [];
+            for (let i = 0; i < 24; i++) {
+                labels.push(`${String(i).padStart(2,'0')}:00`);
+                const totalStrokes = calculateHourlyStrokesWithSplits(i, data);
+                values.push(totalStrokes);
+                colors.push(totalStrokes === 0 ? 'rgba(229,229,229,0.8)' : totalStrokes < 1000 ? 'rgba(76,175,80,0.7)' : totalStrokes < 2000 ? 'rgba(255,193,7,0.7)' : totalStrokes < 3000 ? 'rgba(255,152,0,0.7)' : 'rgba(244,67,54,0.7)');
+            }
+            if (strokesPerHourChart5) strokesPerHourChart5.destroy();
+            strokesPerHourChart5 = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Total Strokes', data: values, backgroundColor: colors, borderColor: colors.map(c => c.replace('0.7','1').replace('0.8','1')), borderWidth: 1 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `Total Strokes: ${ctx.parsed.y.toLocaleString()}` } } },
+                    scales: { x: { title: { display: true, text: 'Hour of Day' } }, y: { title: { display: true, text: 'Total Strokes' }, beginAtZero: true } } }
+            });
+        }
+
+        function createHeatmap5(data) {
+            const container = document.getElementById('heatmapContainer');
+            if (!container) return;
+            const hourlyActivity = {};
+            for (let i = 0; i < 24; i++) hourlyActivity[i] = { totalStrokes: 0, totalRate: 0, rateCount: 0, samples: 0 };
+            data.forEach(point => {
+                if (point.stroke_count !== null) {
+                    const hour = new Date(point.timestamp).getHours();
+                    hourlyActivity[hour].samples += 1;
+                    if (point.stroke_rate !== null && point.stroke_rate !== undefined) {
+                        hourlyActivity[hour].totalRate += point.stroke_rate;
+                        hourlyActivity[hour].rateCount += 1;
+                    }
+                }
+            });
+            for (let i = 0; i < 24; i++) hourlyActivity[i].totalStrokes = calculateHourlyStrokesWithSplits(i, data);
+            let maxStrokes = Math.max(...Array.from({length:24}, (_,i) => hourlyActivity[i].totalStrokes));
+            function getColor(v, m) {
+                if (v === 0 || m === 0) return '#e5e5e5';
+                const r = v/m;
+                if (r < 0.2) return '#c8e6c9'; if (r < 0.4) return '#81c784';
+                if (r < 0.6) return '#ffeb3b'; if (r < 0.8) return '#ff9800'; return '#f44336';
+            }
+            let html = '<div class="heatmap-header">';
+            for (let i = 0; i < 24; i++) html += `<div class="heatmap-header-cell">${i}</div>`;
+            html += '</div><div class="heatmap-row"><div class="heatmap-label">Activity</div><div class="heatmap-cells">';
+            for (let h = 0; h < 24; h++) {
+                const ts = hourlyActivity[h].totalStrokes;
+                const avgRate = hourlyActivity[h].rateCount > 0 ? Math.round(hourlyActivity[h].totalRate / hourlyActivity[h].rateCount) : 0;
+                html += `<div class="heatmap-cell" style="background-color:${getColor(ts,maxStrokes)}" title="${h}:00–${h}:59\nStrokes: ${ts.toLocaleString()}\nAvg Rate: ${avgRate} spm\nSamples: ${hourlyActivity[h].samples}"><span>${ts > 0 ? ts.toLocaleString() : ''}</span></div>`;
+            }
+            html += '</div></div><div class="heatmap-legend"><span>Low</span><div class="heatmap-legend-gradient"><div class="heatmap-legend-item" style="background:#c8e6c9"></div><div class="heatmap-legend-item" style="background:#81c784"></div><div class="heatmap-legend-item" style="background:#ffeb3b"></div><div class="heatmap-legend-item" style="background:#ff9800"></div><div class="heatmap-legend-item" style="background:#f44336"></div></div><span>High</span></div>';
+            container.innerHTML = html;
+        }
+
+        // Chart Helper
+        function createChart(id, labels, data, label, color) {
+            const ctx = document.getElementById(id);
+            if (!ctx) return null;
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label,
+                        data,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#7f8c8d', font: { family: "'DM Sans', sans-serif" } } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#95a5a6' } },
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { color: '#95a5a6' } }
+                    },
+                    elements: { point: { radius: 2 }, line: { borderWidth: 2 } }
+                }
+            });
+        }
+ 
+        // Navigation
+        function showView(v) {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            document.getElementById(`view-${v}`).classList.add('active');
+        }
+ 
+        function switchTab(t) {
+            document.querySelectorAll('.tab').forEach(tb => tb.classList.remove('active'));
+            document.querySelector(`.tab[data-tab="${t}"]`).classList.add('active');
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById(`tab-${t}`).classList.add('active');
+        }
+ 
+        function toggleExportMenu() {
+            document.getElementById('export-menu').classList.toggle('show');
+        }
+ 
+        function exportToCSV() {
+            if (!state.dayData) { alert('No data to export'); return; }
+            window.location.href = `/press/api/analytics/v2/export/csv/${state.selectedPress}/${state.selectedDate}`;
+        }
+ 
+        function formatDuration(m) {
+            if (!m) return '0m';
+            const h = Math.floor(m / 60), mn = Math.round(m % 60);
+            return h > 0 ? `${h}h ${mn}m` : `${mn}m`;
+        }
+    </script>
+</body>
+ 
+</html>
