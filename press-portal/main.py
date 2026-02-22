@@ -36,9 +36,6 @@ from config import (
     HR_ATTENDANCE_DIR,
     PRESS_MASTER_MAINTENANCE,
     PRESS_MASTER_PRODUCTION,
-    PRESS_DATA_STORAGE_BUCKET,
-    PRESS_DAILY_REPORT_PREFIX,
-    PRESS_PROCESSED_PREFIX,
     DEBUG_MODE,
 )
 
@@ -199,95 +196,6 @@ def _friendly_label(key: str) -> str:
     return key.replace("_", " ").title()
 
 
-def _fmt_num(val: Any, decimals: int = 1, default: str = "—") -> str:
-    """Format a numeric value for display; returns default for None."""
-    if val is None:
-        return default
-    try:
-        return f"{float(val):.{decimals}f}"
-    except (TypeError, ValueError):
-        return default
-
-
-# ============================================================
-# MACHINE MONITORING — GCS HELPERS
-# ============================================================
-
-def _list_press_machines(bucket_name: str) -> List[str]:
-    """Return sorted list of press machine names from daily_press_report_operation/ prefix."""
-    try:
-        client = _gcs_client()
-        iterator = client.list_blobs(
-            bucket_name,
-            prefix=f"{PRESS_DAILY_REPORT_PREFIX}/",
-            delimiter="/",
-        )
-        machines: List[str] = []
-        for page in iterator.pages:
-            for prefix in page.prefixes:
-                # prefix looks like: "daily_press_report_operation/press_machine_NP01/"
-                machine = prefix.rstrip("/").split("/")[-1]
-                if machine:
-                    machines.append(machine)
-        return sorted(machines)
-    except Exception as exc:
-        print(f"⚠️ Error listing press machines from {bucket_name}: {exc}")
-        return []
-
-
-def _list_machine_dates(bucket_name: str, machine: str) -> List[str]:
-    """Return sorted list of available report dates (newest first) for a press machine."""
-    try:
-        client = _gcs_client()
-        prefix = f"{PRESS_DAILY_REPORT_PREFIX}/{machine}/"
-        blobs = client.list_blobs(bucket_name, prefix=prefix)
-        dates: List[str] = []
-        for blob in blobs:
-            # blob.name: daily_press_report_operation/{machine}/{YYYY}/{MM}/{DD}.json
-            parts = blob.name.split("/")
-            if len(parts) == 5 and parts[4].endswith(".json"):
-                year, month, day = parts[2], parts[3], parts[4][:-5]
-                dates.append(f"{year}-{month}-{day}")
-        return sorted(set(dates), reverse=True)
-    except Exception as exc:
-        print(f"⚠️ Error listing dates for {machine}: {exc}")
-        return []
-
-
-def _load_daily_press_report(bucket_name: str, machine: str, date_str: str) -> Optional[Dict]:
-    """Load the 24-hr daily press report JSON for a machine and date."""
-    year, month, day = date_str.split("-")
-    path = f"{PRESS_DAILY_REPORT_PREFIX}/{machine}/{year}/{month}/{day}.json"
-    return _read_json(bucket_name, path)
-
-
-def _list_processed_files(bucket_name: str, machine: str, date_str: str) -> List[str]:
-    """Return sorted list of 30-min processed file names (without .json) for a machine/date."""
-    try:
-        year, month, day = date_str.split("-")
-        prefix = f"{PRESS_PROCESSED_PREFIX}/{machine}/{year}/{month}/{day}/"
-        client = _gcs_client()
-        blobs = client.list_blobs(bucket_name, prefix=prefix)
-        files: List[str] = []
-        for blob in blobs:
-            name = blob.name.split("/")[-1]
-            if name.endswith(".json"):
-                files.append(name[:-5])
-        return sorted(files)
-    except Exception as exc:
-        print(f"⚠️ Error listing processed files for {machine}/{date_str}: {exc}")
-        return []
-
-
-def _load_processed_file(
-    bucket_name: str, machine: str, date_str: str, filename: str
-) -> Optional[Any]:
-    """Load a single 30-min processed JSON file."""
-    year, month, day = date_str.split("-")
-    path = f"{PRESS_PROCESSED_PREFIX}/{machine}/{year}/{month}/{day}/{filename}.json"
-    return _read_json(bucket_name, path)
-
-
 # ============================================================
 # MAIN ENTRY POINT
 # ============================================================
@@ -302,9 +210,7 @@ def press_portal(request):
     bucket = GCS_BUCKET_NAME
 
     try:
-        if view == "machine_analytics":
-            return _render_machine_analytics(request)
-        elif view == "report":
+        if view == "report":
             return _render_report(request, bucket)
         else:
             return _render_dashboard(bucket)
@@ -366,48 +272,6 @@ def _render_report(request, bucket: str):
         maint_cols=maint_cols,
         hr_cols=hr_cols,
         friendly_label=_friendly_label,
-        as_of=datetime.now().strftime("%Y-%m-%d %H:%M IST"),
-    )
-    return html, 200, {"Content-Type": "text/html; charset=utf-8"}
-
-
-def _render_machine_analytics(request):
-    """Render the press machine analytics view (sensor data: strokes, vibration, temperature)."""
-    monitoring_bucket = PRESS_DATA_STORAGE_BUCKET
-
-    machines = _list_press_machines(monitoring_bucket)
-    selected_machine = request.args.get("machine") or (machines[0] if machines else "")
-
-    machine_dates: List[str] = []
-    if selected_machine:
-        machine_dates = _list_machine_dates(monitoring_bucket, selected_machine)
-
-    selected_date = request.args.get("date") or (machine_dates[0] if machine_dates else "")
-    selected_file = request.args.get("file", "")
-
-    daily_report: Optional[Dict] = None
-    processed_files: List[str] = []
-    selected_processed: Optional[Any] = None
-
-    if selected_machine and selected_date:
-        daily_report = _load_daily_press_report(monitoring_bucket, selected_machine, selected_date)
-        processed_files = _list_processed_files(monitoring_bucket, selected_machine, selected_date)
-        if selected_file:
-            selected_processed = _load_processed_file(
-                monitoring_bucket, selected_machine, selected_date, selected_file
-            )
-
-    template = _jinja_env.get_template("press_machine_analytics.html")
-    html = template.render(
-        machines=machines,
-        selected_machine=selected_machine,
-        machine_dates=machine_dates[:90],
-        selected_date=selected_date,
-        daily_report=daily_report,
-        processed_files=processed_files,
-        selected_file=selected_file,
-        selected_processed=selected_processed,
-        fmt=_fmt_num,
         as_of=datetime.now().strftime("%Y-%m-%d %H:%M IST"),
     )
     return html, 200, {"Content-Type": "text/html; charset=utf-8"}

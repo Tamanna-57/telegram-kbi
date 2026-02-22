@@ -33,25 +33,6 @@ HR_ATTENDANCE_DIR: str = "hr_attendance_v1"
 USERS_FILE: str = os.environ.get("USERS_FILE", "users3.json")
 
 # ============================================================
-# PRESS MACHINE MONITORING (separate GCS bucket)
-# ============================================================
-
-# Bucket that holds machine sensor / processed data
-PRESS_DATA_STORAGE_BUCKET: str = os.environ.get(
-    "PRESS_DATA_STORAGE_BUCKET", "press_data_storage"
-)
-
-# Path prefixes inside PRESS_DATA_STORAGE_BUCKET
-# daily_press_report_operation/{machine}/{YYYY}/{MM}/{DD}.json  — 24-hr daily summary
-PRESS_DAILY_REPORT_PREFIX: str = "daily_press_report_operation"
-
-# press_processed/{machine}/{YYYY}/{MM}/{DD}/{HH-MM-SS}.json   — 30-min processed windows
-PRESS_PROCESSED_PREFIX: str = "press_processed"
-
-# raw_data/{machine}/{YYYY}/{MM}/{DD}/{HH-MM-SS}.json          — 5-min raw snapshots
-PRESS_RAW_DATA_PREFIX: str = "raw_data"
-
-# ============================================================
 # DEBUG
 # ============================================================
 
