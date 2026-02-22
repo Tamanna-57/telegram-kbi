@@ -222,6 +222,56 @@ def get_admin_emails() -> List[str]:
     return list(get_admin_contacts().keys())
 
 
+def get_telegram_contacts() -> Dict[str, Dict]:
+    """
+    Load ALL active users from users.json who have a telegram_chat_id set.
+
+    Unlike get_admin_contacts(), this is NOT filtered by role — every active
+    user who has registered their Telegram ID with the bot will receive alerts.
+    """
+    try:
+        users = read_json_from_gcs(GCS_BUCKET, USERS_FILE_ATTENDANCE)
+    except FileNotFoundError:
+        print(f"⚠️ {USERS_FILE_ATTENDANCE} not found. No Telegram contacts.")
+        return {}
+    except json.JSONDecodeError as exc:
+        print(f"❌ {USERS_FILE_ATTENDANCE} invalid JSON: {exc}. No Telegram contacts.")
+        return {}
+    except Exception as exc:
+        print(f"❌ Error loading {USERS_FILE_ATTENDANCE}: {exc}")
+        return {}
+
+    if not isinstance(users, dict):
+        return {}
+
+    telegram_contacts: Dict[str, Dict] = {}
+
+    for email, user_data in users.items():
+        if not isinstance(user_data, dict):
+            continue
+
+        if not user_data.get("is_active", True):
+            continue
+
+        chat_id = user_data.get("telegram_chat_id")
+        chat_id_clean = str(chat_id).strip() if chat_id else ""
+
+        if not chat_id_clean:
+            continue  # No Telegram ID registered — skip silently
+
+        name = user_data.get("name") or email.split("@")[0]
+
+        telegram_contacts[email] = {
+            "email": email,
+            "telegram_chat_id": chat_id_clean,
+            "name": str(name).strip(),
+            "role": user_data.get("role", "user"),
+        }
+
+    print(f"✅ Found {len(telegram_contacts)} user(s) with Telegram IDs")
+    return telegram_contacts
+
+
 # ============================================================
 # ATTENDANCE DATA  — UNCHANGED
 # ============================================================
@@ -677,12 +727,13 @@ def check_attendance_discrepancies(request):
         except Exception as email_exc:
             print(f"⚠️ Email failed (Telegram will still run): {email_exc}")
 
-        # Send TELEGRAM — group first, optionally individual admins
+        # Send TELEGRAM — to ALL active users who have registered their Telegram ID
+        telegram_contacts = get_telegram_contacts()
         telegram_message = format_telegram_message(discrepancies, target_date)
         telegram_results = dispatch_admin_alert(
             bot_token=TELEGRAM_BOT_TOKEN,
             message=telegram_message,
-            admin_contacts=admin_contacts,
+            admin_contacts=telegram_contacts,
         )
 
         print("=== Check Completed Successfully ===")
@@ -728,7 +779,7 @@ def check_attendance_discrepancies(request):
             dispatch_admin_alert(
                 bot_token=TELEGRAM_BOT_TOKEN,
                 message=error_telegram,
-                admin_contacts=admin_contacts,
+                admin_contacts=get_telegram_contacts(),
             )
         except Exception as notify_exc:
             print(f"⚠️ Failed to send error notifications: {notify_exc}")
