@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KBI Press Shop — Monitoring Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+    .navbar-brand { font-weight: 700; letter-spacing: 0.5px; }
+    .stat-card { border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .stat-card .card-body { padding: 1.4rem 1.6rem; }
+    .stat-value { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+    .stat-label { font-size: 0.82rem; color: #6c757d; margin-top: 4px; }
+    .action-card {
+      border-radius: 12px; border: 2px solid transparent;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+      transition: transform .15s, box-shadow .15s, border-color .15s;
+      cursor: pointer; text-decoration: none; color: inherit;
+    }
+    .action-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 18px rgba(0,0,0,.14);
+      border-color: #0d6efd;
+      color: inherit;
+    }
+    .action-icon { font-size: 2.2rem; }
+    .section-title { font-weight: 600; font-size: 1.05rem; color: #495057; }
+    .badge-date { font-size: 0.78rem; font-weight: 500; }
+    .as-of { font-size: 0.78rem; color: #adb5bd; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container">
+    <span class="navbar-brand">🏭 KBI Press Shop</span>
+    <span class="navbar-text text-white-50 as-of ms-auto">Data as of {{ stats.as_of }}</span>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+  <h5 class="mb-1 fw-bold">Monitoring Dashboard</h5>
+  <p class="text-muted mb-4" style="font-size:.88rem;">
+    Real-time overview of press shop operations, maintenance, and attendance.
+  </p>
+
+  <!-- ── Summary Stat Tiles ── -->
+  <div class="row g-3 mb-4">
+
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100">
+        <div class="card-body">
+          <div class="stat-value text-primary">{{ stats.recent_production_7d }}</div>
+          <div class="stat-label">Production entries<br><span class="text-muted">(last 7 days)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100">
+        <div class="card-body">
+          <div class="stat-value text-warning">{{ stats.recent_maintenance_7d }}</div>
+          <div class="stat-label">Maintenance entries<br><span class="text-muted">(last 7 days)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100">
+        <div class="card-body">
+          <div class="stat-value text-success">{{ stats.unique_operators }}</div>
+          <div class="stat-label">Unique operators<br><span class="text-muted">(all time)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+      <div class="card stat-card h-100">
+        <div class="card-body">
+          <div class="stat-value text-secondary" style="font-size:1.6rem;">{{ stats.latest_date }}</div>
+          <div class="stat-label">Latest data date</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row stats -->
+
+  <!-- ── Totals sub-row ── -->
+  <div class="row g-3 mb-5">
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-primary fs-5">{{ stats.total_production_entries }}</div>
+        <div class="text-muted" style="font-size:.82rem;">Total production records</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-warning fs-5">{{ stats.total_maintenance_entries }}</div>
+        <div class="text-muted" style="font-size:.82rem;">Total maintenance records</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Action Tiles ── -->
+  <p class="section-title mb-3">Quick Actions</p>
+  <div class="row g-3 mb-5">
+
+    <div class="col-12 col-md-4">
+      <a href="?view=report" class="card action-card text-decoration-none h-100">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <span class="action-icon">📊</span>
+          <div>
+            <div class="fw-semibold">Full Analytics Report</div>
+            <div class="text-muted" style="font-size:.82rem;">Production + Maintenance + HR attendance in one view</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <a href="?view=report&section=production" class="card action-card text-decoration-none h-100">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <span class="action-icon">🔩</span>
+          <div>
+            <div class="fw-semibold">Production Report</div>
+            <div class="text-muted" style="font-size:.82rem;">Press entry records for the latest available date</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <a href="?view=report&section=maintenance" class="card action-card text-decoration-none h-100">
+        <div class="card-body d-flex align-items-center gap-3 py-3">
+          <span class="action-icon">🔧</span>
+          <div>
+            <div class="fw-semibold">Maintenance Report</div>
+            <div class="text-muted" style="font-size:.82rem;">Tool maintenance log for the latest available date</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+  </div><!-- /action tiles -->
+
+  <!-- ── Recent Dates ── -->
+  {% if recent_dates %}
+  <p class="section-title mb-2">Recent Data Dates</p>
+  <div class="bg-white rounded-3 shadow-sm p-3">
+    <div class="d-flex flex-wrap gap-2">
+      {% for d in recent_dates %}
+      <a href="?view=report&date={{ d }}"
+         class="badge bg-light text-dark border badge-date text-decoration-none py-2 px-3">
+        📅 {{ d }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-warning mt-3">
+    No press shop data found in GCS. Check that the master JSON files exist at the expected paths.
+  </div>
+  {% endif %}
+
+</div><!-- /container -->
+
+<footer class="text-center py-3 mt-5 text-muted" style="font-size:.78rem;">
+  KBI Press Shop Monitoring Portal &mdash; Data as of {{ stats.as_of }}
+</footer>
+
+</body>
+</html>

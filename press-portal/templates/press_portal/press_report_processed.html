@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KBI Press Shop — Analytics Report{% if selected_date %} ({{ selected_date }}){% endif %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+    .navbar-brand { font-weight: 700; }
+    .section-card { border-radius: 12px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .table-sm td, .table-sm th { font-size: 0.83rem; vertical-align: middle; }
+    th { background: #f8f9fa; white-space: nowrap; }
+    .badge-status-present  { background: #d1e7dd; color: #0f5132; }
+    .badge-status-absent   { background: #f8d7da; color: #842029; }
+    .badge-status-default  { background: #e9ecef; color: #495057; }
+    .tab-content { padding-top: 1rem; }
+    .count-badge { font-size: 0.75rem; font-weight: 600; }
+    .back-link { font-size: 0.85rem; }
+    .as-of { font-size: 0.78rem; color: #adb5bd; }
+    .date-select { max-width: 200px; }
+    .no-data { font-size: 0.9rem; color: #6c757d; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+  <div class="container">
+    <span class="navbar-brand">🏭 KBI Press Shop</span>
+    <span class="navbar-text text-white-50 as-of ms-auto">Data as of {{ as_of }}</span>
+  </div>
+</nav>
+
+<div class="container py-4">
+
+  <!-- Back + header row -->
+  <div class="d-flex flex-wrap align-items-center justify-content-between mb-3 gap-2">
+    <div>
+      <a href="?" class="back-link text-decoration-none text-secondary">← Dashboard</a>
+      <h5 class="mb-0 mt-1 fw-bold">Analytics Report</h5>
+    </div>
+
+    <!-- Date selector -->
+    {% if all_dates %}
+    <form method="get" class="d-flex align-items-center gap-2">
+      <input type="hidden" name="view" value="report">
+      <label for="dateSelect" class="text-muted" style="font-size:.85rem; white-space:nowrap;">Date:</label>
+      <select id="dateSelect" name="date" class="form-select form-select-sm date-select"
+              onchange="this.form.submit()">
+        {% for d in all_dates %}
+        <option value="{{ d }}" {% if d == selected_date %}selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% endif %}
+  </div>
+
+  <!-- Summary row -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-primary fs-5">{{ production_records | length }}</div>
+        <div class="text-muted" style="font-size:.8rem;">Production entries</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-warning fs-5">{{ maintenance_records | length }}</div>
+        <div class="text-muted" style="font-size:.8rem;">Maintenance entries</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-success fs-5">{{ hr_records | length }}</div>
+        <div class="text-muted" style="font-size:.8rem;">HR attendance (Press Shop)</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="p-3 bg-white rounded-3 shadow-sm text-center">
+        <div class="fw-bold text-secondary fs-5">{{ selected_date or '—' }}</div>
+        <div class="text-muted" style="font-size:.8rem;">Selected date</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <ul class="nav nav-tabs mb-0" id="reportTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="prod-tab" data-bs-toggle="tab"
+              data-bs-target="#prod-pane" type="button" role="tab">
+        🔩 Production
+        <span class="badge bg-primary count-badge ms-1">{{ production_records | length }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="maint-tab" data-bs-toggle="tab"
+              data-bs-target="#maint-pane" type="button" role="tab">
+        🔧 Maintenance
+        <span class="badge bg-warning text-dark count-badge ms-1">{{ maintenance_records | length }}</span>
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="hr-tab" data-bs-toggle="tab"
+              data-bs-target="#hr-pane" type="button" role="tab">
+        👷 HR Attendance
+        <span class="badge bg-success count-badge ms-1">{{ hr_records | length }}</span>
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content bg-white rounded-bottom-3 shadow-sm px-3 pb-3" id="reportTabContent">
+
+    <!-- ── Production Tab ── -->
+    <div class="tab-pane fade show active" id="prod-pane" role="tabpanel">
+      {% if production_records %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              {% for col in prod_cols %}
+              <th>{{ friendly_label(col) }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in production_records %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              {% for col in prod_cols %}
+              <td>{{ record.get(col, '') }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="no-data py-4 text-center">No production records for {{ selected_date or 'selected date' }}.</p>
+      {% endif %}
+    </div>
+
+    <!-- ── Maintenance Tab ── -->
+    <div class="tab-pane fade" id="maint-pane" role="tabpanel">
+      {% if maintenance_records %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              {% for col in maint_cols %}
+              <th>{{ friendly_label(col) }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in maintenance_records %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              {% for col in maint_cols %}
+              <td>{{ record.get(col, '') }}</td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="no-data py-4 text-center">No maintenance records for {{ selected_date or 'selected date' }}.</p>
+      {% endif %}
+    </div>
+
+    <!-- ── HR Attendance Tab ── -->
+    <div class="tab-pane fade" id="hr-pane" role="tabpanel">
+      {% if hr_records %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>#</th>
+              {% for col in hr_cols %}
+              <th>{{ friendly_label(col) }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in hr_records %}
+            {% set status_val = record.get('status', '') | upper %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              {% for col in hr_cols %}
+              {% if col == 'status' %}
+              <td>
+                {% if status_val == 'PRESENT' %}
+                <span class="badge badge-status-present">PRESENT</span>
+                {% elif status_val == 'ABSENT' %}
+                <span class="badge badge-status-absent">ABSENT</span>
+                {% else %}
+                <span class="badge badge-status-default">{{ record.get(col, '') }}</span>
+                {% endif %}
+              </td>
+              {% else %}
+              <td>{{ record.get(col, '') }}</td>
+              {% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="no-data py-4 text-center">
+        No HR attendance data found for {{ selected_date or 'selected date' }} (Press Shop).
+      </p>
+      {% endif %}
+    </div>
+
+  </div><!-- /tab-content -->
+
+</div><!-- /container -->
+
+<footer class="text-center py-3 mt-5 text-muted" style="font-size:.78rem;">
+  KBI Press Shop Monitoring Portal &mdash; Data as of {{ as_of }}
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Auto-activate tab from URL hash or ?section= param -->
+<script>
+  (function () {
+    var params = new URLSearchParams(window.location.search);
+    var section = params.get('section');
+    var tabMap = { production: 'prod-tab', maintenance: 'maint-tab', hr: 'hr-tab' };
+    var tabId = tabMap[section];
+    if (tabId) {
+      var el = document.getElementById(tabId);
+      if (el) { new bootstrap.Tab(el).show(); }
+    }
+  })();
+</script>
+
+</body>
+</html>

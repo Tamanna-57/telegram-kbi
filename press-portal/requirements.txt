@@ -1,0 +1,5 @@
+# press-portal/requirements.txt
+# Cloud Function: press_portal (Press Analytics & Monitoring Portal)
+functions-framework==3.*
+google-cloud-storage==2.*
+Jinja2==3.*

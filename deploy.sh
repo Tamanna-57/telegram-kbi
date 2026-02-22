@@ -49,6 +49,10 @@ ATTENDANCE_DIR="./attendance-checker"
 ATTENDANCE_FUNCTION_NAME="check-attendance-discrepancies"
 ATTENDANCE_ENTRY_POINT="check_attendance_discrepancies"
 
+PRESS_PORTAL_DIR="./press-portal"
+PRESS_PORTAL_FUNCTION_NAME="press-portal"
+PRESS_PORTAL_ENTRY_POINT="press_portal"
+
 # ---- COLORS FOR OUTPUT ----
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -108,6 +112,21 @@ deploy_attendance() {
     echo_info "✅ $ATTENDANCE_FUNCTION_NAME deployed."
 }
 
+deploy_press_portal() {
+    echo_info "Deploying: $PRESS_PORTAL_FUNCTION_NAME (Press Analytics & Monitoring Portal)..."
+    gcloud functions deploy "$PRESS_PORTAL_FUNCTION_NAME" \
+        --gen2 \
+        --runtime="$RUNTIME" \
+        --region="$REGION" \
+        --source="$PRESS_PORTAL_DIR" \
+        --entry-point="$PRESS_PORTAL_ENTRY_POINT" \
+        --trigger-http \
+        --allow-unauthenticated \
+        --timeout=120s \
+        --memory=256MB
+    echo_info "✅ $PRESS_PORTAL_FUNCTION_NAME deployed."
+}
+
 
 # =============================================================================
 # MAIN — Parse arguments and run
@@ -124,21 +143,26 @@ case "$COMMAND" in
     "attendance")
         deploy_attendance
         ;;
+    "press")
+        deploy_press_portal
+        ;;
     "all")
         deploy_gantt
         deploy_webhook
         deploy_attendance
+        deploy_press_portal
         echo_info ""
-        echo_info "🎉 All 3 functions deployed successfully!"
+        echo_info "🎉 All 4 functions deployed successfully!"
         echo_info ""
         echo_info "NEXT STEP: Set environment variables in Cloud Console:"
         echo_info "  Cloud Functions → Select function → Edit → Variables & Secrets"
         echo_info "  Variables to set: TELEGRAM_BOT_TOKEN, TELEGRAM_GROUP_CHAT_ID,"
-        echo_info "                    ADMIN_CHAT_ID, SEND_INDIVIDUAL_ALERTS"
+        echo_info "                    ADMIN_CHAT_ID, SEND_INDIVIDUAL_ALERTS,"
+        echo_info "                    GCS_BUCKET_NAME (for press-portal)"
         ;;
     *)
         echo_error "Unknown command: $COMMAND"
-        echo "Usage: $0 [all|gantt|webhook|attendance]"
+        echo "Usage: $0 [all|gantt|webhook|attendance|press]"
         exit 1
         ;;
 esac

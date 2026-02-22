@@ -30,11 +30,59 @@ telegram-kbi/
 │   ├── alert_dispatcher.py          ← Copied from shared/ by deploy.sh
 │   └── requirements.txt
 │
+├── press-portal/                    ← Cloud Function: press analytics & monitoring portal
+│   ├── main.py                      ← press_portal (entry point)
+│   ├── config.py                    ← Self-contained (GCS paths + DEBUG_MODE)
+│   ├── requirements.txt
+│   └── templates/
+│       └── press_portal/
+│           ├── press_monitoring_dashboard.html  ← Tile overview (default ?view=dashboard)
+│           └── press_report_processed.html      ← Detailed analytics (?view=report)
+│
 ├── deploy.sh                        ← Deployment helper script
 └── DEPLOYMENT.md                    ← This file
 ```
 
 **Rule:** Always edit the files in `shared/`. Never directly edit the copies inside function folders — they get overwritten on every deploy.
+
+> **Note on press-portal:** `press-portal/config.py` is self-contained (no Telegram settings needed). It does NOT use shared modules and does NOT get overwritten by deploy.sh.
+
+---
+
+## Press Analytics & Monitoring Portal
+
+The `press-portal` function serves an HTTP web dashboard for press shop analytics.
+
+### URL Routes
+
+| URL | Description |
+|-----|-------------|
+| `GET /press-portal` | Monitoring dashboard — summary tiles + recent dates |
+| `GET /press-portal?view=report` | Analytics report — latest available date |
+| `GET /press-portal?view=report&date=YYYY-MM-DD` | Analytics report — specific date |
+| `GET /press-portal?view=report&section=maintenance` | Jump directly to Maintenance tab |
+
+### GCS Data Sources
+
+| GCS Path | Description |
+|----------|-------------|
+| `press_entry_report_shop/production/master_press_entry_report.json` | Production master records |
+| `press_entry_report_shop/maintenance/master_maintenance_tool_trial.json` | Maintenance records |
+| `hr_attendance_v1/YYYY-MM-DD.json` | HR attendance (Press Shop filtered) |
+
+### Deployment
+
+```bash
+./deploy.sh press          # Deploy only press-portal
+./deploy.sh all            # Deploy all 4 functions (includes press-portal)
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GCS_BUCKET_NAME` | `kbi-first` | GCS bucket containing press data |
+| `DEBUG_MODE` | `false` | Enable verbose GCS logging |
 
 ---
 
