@@ -77,7 +77,12 @@ TELEGRAM_GROUP_CHAT_ID: str = os.environ.get("TELEGRAM_GROUP_CHAT_ID", "")
 
 # Admin's personal chat ID — used for private approval requests and delay reports.
 # This is separate from the group and always receives private admin messages.
-ADMIN_CHAT_ID: str = os.environ.get("ADMIN_CHAT_ID", "6199948052")
+ADMIN_CHAT_ID: str = os.environ.get("ADMIN_CHAT_ID", "")
+
+# Telegram bot username (without @), e.g. "KBIAttendanceBot"
+# Used to generate a one-click activation deeplink in email notifications.
+# Set this in Cloud Console → Cloud Functions → Edit → Variables & Secrets.
+BOT_USERNAME: str = os.environ.get("BOT_USERNAME", "")
 
 # ============================================================
 # ALERT BEHAVIOR FLAGS

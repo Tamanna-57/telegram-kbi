@@ -49,6 +49,7 @@ from config import (
     PRESS_MASTER_PRODUCTION,
     CLOUD_FUNCTIONS_SETTINGS_PATH,
     BOT_TOKEN,
+    BOT_USERNAME,
 )
 from telegram_service import send_message  # for direct one-off sends
 from alert_dispatcher import dispatch_admin_alert
@@ -468,7 +469,7 @@ def format_telegram_message(discrepancies: List[Dict[str, str]], target_date: st
 def format_email_body(discrepancies: List[Dict[str, str]], target_date: str) -> str:
     """Format HTML email body — UNCHANGED."""
     if discrepancies and discrepancies[0].get("type") == "FILE_MISSING":
-        return f"""
+        missing_html = f"""
         <html>
         <head>
             <style>
@@ -492,6 +493,16 @@ def format_email_body(discrepancies: List[Dict[str, str]], target_date: str) -> 
             </p>
         </body>
         </html>"""
+        if BOT_USERNAME:
+            tg_note = (
+                '<p style="margin:10px 0; padding:10px; background:#e8f5e9; border-radius:4px;">'
+                '📱 <strong>Not receiving Telegram alerts?</strong> &nbsp;'
+                f'<a href="https://t.me/{BOT_USERNAME}?start=1" style="color:#1976d2;">'
+                'Click here to activate the Telegram bot</a>'
+                ' — open the link on your phone, then tap <strong>Start</strong>.</p>'
+            )
+            missing_html = missing_html.replace("</body>", tg_note + "\n        </body>")
+        return missing_html
 
     html = f"""
     <html>
@@ -546,6 +557,18 @@ def format_email_body(discrepancies: List[Dict[str, str]], target_date: str) -> 
         </div>
     </body>
     </html>"""
+
+    if BOT_USERNAME:
+        telegram_section = (
+            '<p style="margin-top:12px; padding:10px; background:#e8f5e9; border-radius:4px;">'
+            '📱 <strong>Not receiving Telegram alerts?</strong> &nbsp;'
+            f'<a href="https://t.me/{BOT_USERNAME}?start=1" style="color:#1976d2;">'
+            'Click here to activate the Telegram bot</a>'
+            ' — open the link on your phone, then tap <strong>Start</strong>.'
+            ' You will receive future alerts directly on Telegram.</p>'
+        )
+        html = html.replace("</body>", telegram_section + "\n    </body>")
+
     return html
 
 

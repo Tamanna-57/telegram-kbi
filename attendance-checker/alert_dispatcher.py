@@ -27,15 +27,14 @@ from typing import Optional, List, Dict, Any
 # config.py and telegram_service.py must be in the same folder at deploy time
 from config import (
     TELEGRAM_GROUP_CHAT_ID,
-    ADMIN_CHAT_ID,
     SEND_INDIVIDUAL_ALERTS,
     DEBUG_MODE,
 )
 from telegram_service import send_message
 
-# If TELEGRAM_GROUP_CHAT_ID is not set, fall back to ADMIN_CHAT_ID so alerts
-# still reach someone even without a group configured.
-EFFECTIVE_GROUP_CHAT_ID: str = TELEGRAM_GROUP_CHAT_ID or ADMIN_CHAT_ID
+# Only use an explicit group chat ID. Never fall back to a personal chat ID as a
+# "group" — that causes silent failures when the personal chat owner hasn't started the bot.
+EFFECTIVE_GROUP_CHAT_ID: str = TELEGRAM_GROUP_CHAT_ID
 
 # ============================================================
 # LOGGING
@@ -224,13 +223,18 @@ def dispatch_admin_alert(
             )
     else:
         logger.warning(
-            "⚠️ Neither TELEGRAM_GROUP_CHAT_ID nor ADMIN_CHAT_ID is set. Admin group alert skipped."
+            "⚠️ TELEGRAM_GROUP_CHAT_ID is not set. Admin group alert skipped. "
+            "Alerts will be sent directly to individual admin chat IDs from users.json."
         )
 
-    # ---- Optionally send to each admin individually ----
-    if not SEND_INDIVIDUAL_ALERTS:
+    # ---- Send to each admin individually ----
+    # Always send to individuals when no group is configured (so alerts still reach someone).
+    # When a group IS configured, respect the SEND_INDIVIDUAL_ALERTS flag.
+    no_group_configured = not EFFECTIVE_GROUP_CHAT_ID
+    if not SEND_INDIVIDUAL_ALERTS and not no_group_configured:
         logger.info(
-            "Individual admin alerts DISABLED (SEND_INDIVIDUAL_ALERTS=false)."
+            "Individual admin alerts DISABLED (SEND_INDIVIDUAL_ALERTS=false). "
+            "Set env var SEND_INDIVIDUAL_ALERTS=true to also send to individuals when a group is configured."
         )
         logger.info(
             f"Admin alert summary: group_sent={results['group_sent']}, "
