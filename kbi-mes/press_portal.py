@@ -3425,7 +3425,7 @@ def calculate_std_dev(values):
 def analytics_dashboard():
     """KBI Analytics Dashboard - Fleet-wide performance metrics"""
     preselected_press = request.args.get('press', '')
-    return render_template('press_report_processed.html', preselected_press=preselected_press)
+    return render_template('press_operations_analytics.html', preselected_press=preselected_press)
 
 
 @press_portal_bp.route('/api/kbi/report/pdf/<date>', methods=['GET'])
