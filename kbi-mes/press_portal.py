@@ -4073,42 +4073,60 @@ def generate_day_alerts(data):
 def api_v2_available_dates(press_name):
     """
     Get available dates for analytics for a specific press.
-    Checks the daily_press_report_operation folder for available dates.
+    Checks all three data sources so dates with any data are shown:
+      1. daily_press_report_operation  (daily reports)
+      2. processed/{press_name}/       (5-min timeseries YYYY-MM-DD.json)
     """
     try:
         bucket = get_gcs_bucket(COMMANDS_BUCKET_NAME)
         if not bucket:
             return jsonify({'error': 'Storage not available'}), 500
-        
-        # Scan daily_press_report_operation folder
-        prefix = f"daily_press_report_operation/{press_name}/"
-        blobs = list(bucket.list_blobs(prefix=prefix))
-        
+
         dates = set()
-        for blob in blobs:
-            try:
-                # Path format: daily_press_report_operation/{press_name}/{year}/{month}/{day}_daily_report.json
-                parts = blob.name.split('/')
-                if len(parts) >= 5 and '_daily_report.json' in parts[-1]:
-                    year = parts[2]
-                    month = parts[3]
-                    day = parts[4].replace('_daily_report.json', '')
-                    date_str = f"{year}-{month}-{day}"
-                    
-                    # Validate date format
-                    datetime.strptime(date_str, '%Y-%m-%d')
-                    dates.add(date_str)
-            except (IndexError, ValueError):
-                continue
-        
+
+        # --- Source 1: daily report files ---
+        try:
+            prefix = f"daily_press_report_operation/{press_name}/"
+            for blob in bucket.list_blobs(prefix=prefix):
+                try:
+                    # Path: daily_press_report_operation/{press_name}/{year}/{month}/{day}_daily_report.json
+                    parts = blob.name.split('/')
+                    if len(parts) >= 5 and '_daily_report.json' in parts[-1]:
+                        year = parts[2]
+                        month = parts[3]
+                        day = parts[4].replace('_daily_report.json', '')
+                        date_str = f"{year}-{month}-{day}"
+                        datetime.strptime(date_str, '%Y-%m-%d')
+                        dates.add(date_str)
+                except (IndexError, ValueError):
+                    continue
+        except Exception as e:
+            logging.warning(f"Could not scan daily_report dates for {press_name}: {e}")
+
+        # --- Source 2: 5-min timeseries files (processed/{press_name}/YYYY-MM-DD.json) ---
+        try:
+            prefix = f"{PROCESSED_DATA_PREFIX}{press_name}/"
+            for blob in bucket.list_blobs(prefix=prefix):
+                filename = blob.name.replace(prefix, '')
+                # Match exactly YYYY-MM-DD.json (15 chars)
+                if filename.endswith('.json') and len(filename) == 15:
+                    date_str = filename[:-5]
+                    try:
+                        datetime.strptime(date_str, '%Y-%m-%d')
+                        dates.add(date_str)
+                    except ValueError:
+                        continue
+        except Exception as e:
+            logging.warning(f"Could not scan 5-min dates for {press_name}: {e}")
+
         sorted_dates = sorted(list(dates), reverse=True)
-        
+
         return jsonify({
             'press_name': press_name,
             'available_dates': sorted_dates,
             'count': len(sorted_dates)
         }), 200
-    
+
     except Exception as e:
         logging.error(f"Error getting available dates: {e}")
         return jsonify({'error': str(e)}), 500
